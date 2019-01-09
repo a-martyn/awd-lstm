@@ -55,16 +55,45 @@ def batch(data, batch_size):
     """
     Reshape vector as matrix where number of columns j = batch size
     drops any remainder observations that don't fit perfectly.
+    For instance, with the alphabet as the sequence and batch size 4, we'd get
+    ┌ a g m s ┐
+    │ b h n t │
+    │ c i o u │
+    │ d j p v │
+    │ e k q w │
+    └ f l r x ┘
 
-    Expects data as PyTorch tensor, returns the same but reshaped.
+    Expects data as PyTorch tensor, returns the same but reshaped. See tests.py
+
+    Adapted from: https://github.com/pytorch/examples/blob/master/word_language_model/main.py
     """
     # Calculate number of observations that remain after dividing dataset
     # into batches of size batch_size
     n = data.size(0)
     remainder = n % batch_size
     # Drop remainder observations 
-    data = data[:-remainder]
+    data = data.narrow(0, 0, n-remainder)
     # Reshape vector into matrix where j=batch_size
-    data = data.view(-1, batch_size).contiguous()
+    data = data.view(batch_size, -1).t().contiguous()
     return data
+
+
+def get_batch(data, i, bptt):
+    """
+    get_batch subdivides the source data into chunks of length bptt.
+    If data is equal to the example output of the batch function, with
+    a bptt-limit of 2, we'd get the following two Variables for i = 0:
+    ┌ a g m s ┐ ┌ b h n t ┐
+    └ b h n t ┘ └ c i o u ┘
+
+    See test for details
+
+    Adapted from: https://github.com/pytorch/examples/blob/master/word_language_model/main.py
+    """
+    seq_len = min(bptt, len(data)-1-i)
+    x = data[i:i+seq_len]
+    y = data[i+1:i+1+seq_len]
+    return x, y
+
+
 
