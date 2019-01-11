@@ -22,9 +22,6 @@ class Tests(unittest.TestCase):
 
         new_state = module.state_dict()
 
-        print(old_state)
-        print(new_state)
-
         # Test
         # Because dropout probability is 1
         # all hidden-to-hidden weights should be zero

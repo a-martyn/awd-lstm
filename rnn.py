@@ -99,13 +99,13 @@ class WeightDropLSTM(nn.LSTM):
 ##########################################################################
 
 
-class LSTMModel(nn.Module):
+class AWD_LSTM(nn.Module):
 
     def __init__(self, ntoken, ninp, nhid, nlayers, dropout=0.5, tie_weights=False):
-        super(LSTMModel, self).__init__()
+        super(AWD_LSTM, self).__init__()
         self.drop = nn.Dropout(dropout)
         self.encoder = nn.Embedding(ntoken, ninp)
-        # 'DropConnect' on recurrent hidden weights, but no dropout on LSTM outputs
+        # "DropConnect" on recurrent hidden weights, but no dropout on LSTM outputs
         self.rnn = WeightDropLSTM(ninp, nhid, nlayers, dropout=0, weight_dropout=dropout)
         self.decoder = nn.Linear(nhid, ntoken)
 
