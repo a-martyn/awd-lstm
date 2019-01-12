@@ -1,6 +1,6 @@
 import os
 from io import open
-import torch
+import torch as th
 
 
 class Dictionary(object):
@@ -46,7 +46,7 @@ def tokenise(path, dictionary):
             words = line.split() + ['<eos>']
             for word in words:
                 tokens += [dictionary.word_to_idx[word]]
-        tokens = torch.LongTensor(tokens)
+        tokens = th.LongTensor(tokens)
 
     return tokens, dictionary
 

@@ -3,7 +3,7 @@ import string
 import torch
 
 # Local
-import data_handlers as data
+import data_loader as dl
 
 
 class Tests(unittest.TestCase):
@@ -18,7 +18,7 @@ class Tests(unittest.TestCase):
                                    [3, 9, 15, 21],
                                    [4, 10, 16, 22],
                                    [5, 11, 17, 23]])
-        r = data.batch(d, batch_size)
+        r = dl.batch(d, batch_size)
         self.assertEqual(int(torch.all(torch.eq(expect, r))), 1)
 
     def test_batch_B(self):
@@ -31,7 +31,7 @@ class Tests(unittest.TestCase):
                                    [3, 9, 15, 21],
                                    [4, 10, 16, 22],
                                    [5, 11, 17, 23]])
-        r = data.batch(d, batch_size)
+        r = dl.batch(d, batch_size)
         self.assertEqual(int(torch.all(torch.eq(expect, r))), 1)
 
 
@@ -48,7 +48,7 @@ class Tests(unittest.TestCase):
                                [1, 7, 13, 19]])
         ye = torch.LongTensor([[1, 7, 13, 19],
                                [2, 8, 14, 20]])
-        x, y = data.get_batch(d, i, bptt)
+        x, y = dl.get_batch(d, i, bptt)
 
         self.assertEqual(int(torch.all(torch.eq(xe, x))), 1)
         self.assertEqual(int(torch.all(torch.eq(ye, y))), 1)
@@ -64,7 +64,7 @@ class Tests(unittest.TestCase):
         bptt = 2
         xe = torch.LongTensor([[4, 10, 16, 22]])
         ye = torch.LongTensor([[5, 11, 17, 23]])
-        x, y = data.get_batch(d, i, bptt)
+        x, y = dl.get_batch(d, i, bptt)
 
         self.assertEqual(int(torch.all(torch.eq(xe, x))), 1)
         self.assertEqual(int(torch.all(torch.eq(ye, y))), 1)

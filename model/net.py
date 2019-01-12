@@ -60,10 +60,10 @@ class LSTMCell(nn.Module):
         preact = self.i2h(x) + self.h2h(h)
 
         # Activations
-        i = F.sigmoid(preact[:, :self.hidden_size])                      # input gate
-        f = F.sigmoid(preact[:, self.hidden_size:2*self.hidden_size])    # forget gate
-        g = T.tanh(preact[:, 3*self.hidden_size:])                       # cell gate
-        o = F.sigmoid(preact[:, 2*self.hidden_size:3*self.hidden_size])  # ouput gate
+        i = th.sigmoid(preact[:, :self.hidden_size])                      # input gate
+        f = th.sigmoid(preact[:, self.hidden_size:2*self.hidden_size])    # forget gate
+        g = th.tanh(preact[:, 3*self.hidden_size:])                       # cell gate
+        o = th.sigmoid(preact[:, 2*self.hidden_size:3*self.hidden_size])  # ouput gate
 
 
         # Cell state computations: 
@@ -72,7 +72,7 @@ class LSTMCell(nn.Module):
         c_t = th.mul(f, c) + th.mul(i, g)
 
         # Output
-        h_t = th.mul(o, F.tanh(c_t))
+        h_t = th.mul(o, th.tanh(c_t))
 
         return h_t, (h_t, c_t)
 
@@ -107,7 +107,6 @@ class AWD_LSTM(nn.Module):
     def forward(self, x, hiddens):
         # Translate input tokens to embedding vectors
         x = self.embedding(x)
-
 
         # LSTM
         # --------------
