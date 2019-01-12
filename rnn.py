@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 
@@ -80,6 +81,21 @@ class WeightDrop(nn.Module):
         self.forward = module.forward
 
 
+class WD_LSTMCell(nn.LSTMCell):
+    """
+    Wrapper around :class:`torch.nn.LSTMCell` that adds ``weight_dropout`` named argument.
+
+    Args:
+        weight_dropout (float): The probability a weight will be dropped.
+    """
+
+    def __init__(self, *args, weight_dropout=0.5, **kwargs):
+        super().__init__(*args, **kwargs)
+        weights = ['weight_hh']
+        _weight_drop(self, weights, weight_dropout)
+
+
+
 class WeightDropLSTM(nn.LSTM):
     """
     Wrapper around :class:`torch.nn.LSTM` that adds ``weight_dropout`` named argument.
@@ -88,15 +104,72 @@ class WeightDropLSTM(nn.LSTM):
         weight_dropout (float): The probability a weight will be dropped.
     """
 
-    def __init__(self, *args, weight_dropout=0.0, **kwargs):
+    def __init__(self, *args, weight_dropout=0.5, **kwargs):
         super().__init__(*args, **kwargs)
         weights = ['weight_hh_l' + str(i) for i in range(self.num_layers)]
         _weight_drop(self, weights, weight_dropout)
 
 
+class VariationalDropout(nn.Module):
+    """ An adaption of torch.nn.functional.dropout that applies 
+    the same dropout mask each time it is called.
+
+    Samples a binary dropout mask only once upon instantiatin and then 
+    allows that same dropout mask to be used repeatedly. When minibatches
+    are received as input, then a different mask is used for each minibatch.
+
+    Described in section 4.2 of the AWD-LSTM reference paper where they cite:
+    A Theoretically Grounded Application of Dropout in Recurrent Neural Networks 
+    (Gal & Ghahramani, 2016, https://arxiv.org/abs/1512.05287)
+
+    TODO Note: The AWD-LSTM authors' implementation is not as described in paper.
+    There code appears to sample a new mask on each call.
+    https://github.com/salesforce/awd-lstm-lm/blob/master/locked_dropout.py
+    """
+    def __init__(self, example_input, p=0.5):
+        super().__init__()
+        ones = example_input.new_ones(example_input.size(), requires_grad=False)
+        self.mask = nn.functional.dropout(ones, p=p)
+
+    def forward(self, input):
+        if not self.training:
+            return input
+        return input * self.mask
+
+
+
+
 ##########################################################################
 # LSTM Model
 ##########################################################################
+
+
+
+class AWD_LSTM_Layer(nn.Module):
+    """
+    I'm just implementing this layer explicitly for my own understanding
+    but alternatievly could use the nn.LSTM() class
+    """
+    def __init__(self, input_size, hidden_size, weight_dropout=0.5):
+        super(AWD_LSTM_Layer, self).__init__()
+        self.wd_lstm_cell = WD_LSTMCell(ninp, nhid, weight_dropout=weight_dropout)
+
+    def forward(self, inputs_, (output_prev, cellstate_prev)):
+        hidden  = (output_prev, cellstate_prev)
+        outputs = []
+        for x in torch.unbind(input_, dim=1):
+            output, cell_state = wd_lstm_cell(x, hidden)
+            outputs.append(hidden[0].clone()) # clone to maintain computation graph
+
+        return 
+
+
+
+
+
+
+
+
 
 
 class AWD_LSTM(nn.Module):
