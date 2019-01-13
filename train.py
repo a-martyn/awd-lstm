@@ -15,7 +15,7 @@ def repackage_hidden(h):
         return tuple(repackage_hidden(v) for v in h)
 
 
-def train(model, data, criterion, ntokens:int, batch_size:int, lr:float, bptt:int, clip):
+def train(model, data, criterion, optimizer, ntokens:int, batch_size:int, lr:float, bptt:int, clip):
     log_interval = 1
     
     model.train()
@@ -29,13 +29,14 @@ def train(model, data, criterion, ntokens:int, batch_size:int, lr:float, bptt:in
         # entire dataset
         hidden = repackage_hidden(hidden)
         # Zero the gradients from previous iteration, ready for new values
-        model.zero_grad()
+        optimizer.zero_grad()
         # Forward pass
         output, hidden = model(inputs, hidden)
         # Calculate loss
         loss = criterion(output.view(-1, ntokens), targets.view(-1))
         # Backpropagate
         loss.backward()
+        optimizer.step()
         
         # TODO: Check clipping config
         nn.utils.clip_grad_norm_(model.parameters(), clip)
