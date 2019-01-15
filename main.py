@@ -20,10 +20,7 @@ print(f'Running on: {device}')
 # Globals
 # --------------------------------------------------
 path = './data/penn/'
-
 batch_size = 20
-emsize = 400
-nhid = 1150
 
 
 # LOAD DATA
@@ -54,14 +51,17 @@ test_data = test_data.to(device)
 # INIT MODEL
 # --------------------------------------------------
 
-epochs = 3
+epochs = 500
 lr = 0.4
 timesteps = 35
+emsize = 400
+nhid = 1150
 clip = 0.25
 weight_decay = 1.2e-6
 non_monotone = 5
+dropout = 0.25   # authours use --dropouti 0.4 --dropouth 0.25
 
-model = net.AWD_LSTM(ntokens, emsize, nhid, device=device).to(device)
+model = net.AWD_LSTM(ntokens, emsize, nhid, dropout=dropout, device=device).to(device)
 # TODO: Check loss matches paper
 criterion = nn.CrossEntropyLoss()
 params = list(model.parameters()) + list(criterion.parameters())
