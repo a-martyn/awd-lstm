@@ -14,11 +14,12 @@ from utils import epoch_metrics, NT_ASGD
 from pprint import pprint
 
 
+# Choose device
+device = th.device('cuda:0' if th.cuda.is_available() else 'cpu')
+print(f'Running on: {device}')
+
 # Globals
 # --------------------------------------------------
-
-cuda = False
-device = th.device("cuda" if cuda else "cpu")
 path = './data/penn/'
 
 batch_size = 20
@@ -45,6 +46,12 @@ test_data  = batch(test_data, batch_size)
 # Total number of tokens in corpus
 ntokens = len(dictionary)
 
+# Make sure all data is on GPU if available
+train_data.to(device)
+val_data.to(device)
+test_data.to(device)
+
+
 # INIT MODEL
 # --------------------------------------------------
 
@@ -64,7 +71,10 @@ nt_asgd = NT_ASGD(lr, weight_decay, non_monotone)
 # TRAIN MODEL
 # --------------------------------------------------
 
-val_loss = 100000000000000000000
+# set validation looss arbitrarily high initially 
+# as hack to avoid ASGD triggering
+val_loss = 100000000000000000000 
+
 for epoch in range(1, epochs+1):
     epoch_start_time = time.time()
     optimizer = nt_asgd.get_optimizer(val_loss, params)
