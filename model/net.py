@@ -121,7 +121,7 @@ class AWD_LSTM(nn.Module):
 
     """
 
-    def __init__(self, ntokens, embedding_size, hidden_size, bias=True, dropout=0.5):
+    def __init__(self, ntokens, embedding_size, hidden_size, bias=True, dropout=0.5, device='cpu'):
         super(AWD_LSTM, self).__init__()
         self.embedding = nn.Embedding(ntokens, embedding_size)
         self.layer0 = LSTMCell(embedding_size, hidden_size, bias=bias)
@@ -135,6 +135,7 @@ class AWD_LSTM(nn.Module):
         self.hidden_size = hidden_size
         self.dropout = dropout
         self.dropoute = 0.1
+        self.device = device
 
     def init_hidden(self, batch_size):
         weight = next(self.parameters())
@@ -180,7 +181,6 @@ class AWD_LSTM(nn.Module):
     def forward(self, x, hiddens):
         # Translate input tokens to embedding vectors
         # with dropout
-        #x = self.embedding(x)
         x = self.embedded_dropout(self.embedding, x, p=self.dropoute)
 
         # LSTM
@@ -199,7 +199,7 @@ class AWD_LSTM(nn.Module):
         # so we pass batches all the way through
 
         h, c = hiddens
-        output = T()
+        output = T().to(self.device)
         for t in range(x.size(0)): 
             # Propagate through layers for each timestep
             # Note: using 3 layers here as per paper

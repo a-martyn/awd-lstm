@@ -5,11 +5,12 @@ import torch.optim as optim
 
 
 def epoch_metrics(epoch, epoch_start_time, val_loss):
-    metrics = [f'| end of epoch {epoch:3d} ',
+    metrics = [f'| epoch {epoch:3d} ',
                f'| time: {(time.time() - epoch_start_time):5.2f}s ',
                f'| valid loss {val_loss:5.2f} ',
                f'| valid ppl {math.exp(val_loss):8.2f} ',
                f'| valid bpc {val_loss / math.log(2):8.3f}']
+    return ''.join(metrics)
     
 
 def batch_metrics(batch, data, timesteps, lr, elapsed, log_interval, cur_loss):

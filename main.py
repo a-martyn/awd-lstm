@@ -7,8 +7,7 @@ import torch.optim as optim
 
 import model.net as net
 from model.data_loader import Dictionary, tokenise, batch
-from train import train
-from evaluate import evaluate
+from train import train, evaluate
 from utils import epoch_metrics, NT_ASGD
 
 from pprint import pprint
@@ -47,9 +46,9 @@ test_data  = batch(test_data, batch_size)
 ntokens = len(dictionary)
 
 # Make sure all data is on GPU if available
-train_data.to(device)
-val_data.to(device)
-test_data.to(device)
+train_data = train_data.to(device)
+val_data = val_data.to(device)
+test_data = test_data.to(device)
 
 
 # INIT MODEL
@@ -62,7 +61,7 @@ clip = 0.25
 weight_decay = 1.2e-6
 non_monotone = 5
 
-model = net.AWD_LSTM(ntokens, emsize, nhid).to(device)
+model = net.AWD_LSTM(ntokens, emsize, nhid, device=device).to(device)
 # TODO: Check loss matches paper
 criterion = nn.CrossEntropyLoss()
 params = list(model.parameters()) + list(criterion.parameters())
@@ -79,7 +78,7 @@ for epoch in range(1, epochs+1):
     epoch_start_time = time.time()
     optimizer = nt_asgd.get_optimizer(val_loss, params)
     train(model, train_data, criterion, optimizer, ntokens, batch_size, lr, timesteps, clip, device)
-    val_loss = evaluate(model, val_data, criterion, ntokens, batch_size, timesteps)
+    val_loss = evaluate(model, val_data, criterion, ntokens, batch_size, timesteps, device)
     print(epoch_metrics(epoch, epoch_start_time, val_loss))
 
 

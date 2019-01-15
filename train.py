@@ -1,5 +1,6 @@
 import time
 import numpy as np
+from tqdm import tqdm
 
 import torch as th
 import torch.nn as nn
@@ -18,13 +19,12 @@ def repackage_hidden(h):
 
 def train(model, data, criterion, optimizer, ntokens:int, batch_size:int, lr:float, timesteps:int, clip, device):
     log_interval = 1
-    
     model.train()
     total_loss = 0
     start_time = time.time()
     hidden = model.init_hidden(batch_size)
     hidden = (h.to(device) for h in hidden)
-    for batch, i in enumerate(range(0, data.size(0)-1, timesteps)):
+    for batch, i in tqdm(enumerate(range(0, data.size(0)-1, timesteps))):
         inputs, targets = get_batch(data, i, timesteps)
         # For each batch, detach hidden state from state created in previous
         # batches. Else, the model would attempt backpropagation through the 
@@ -44,17 +44,32 @@ def train(model, data, criterion, optimizer, ntokens:int, batch_size:int, lr:flo
         nn.utils.clip_grad_norm_(model.parameters(), clip)
         for p in model.parameters():
             p.data.add_(-lr, p.grad.data)
-            
-        total_loss += loss.item()
-        
-        if batch % log_interval == 0 and batch > 0:
-            cur_loss = total_loss / log_interval
-            elapsed  = time.time() - start_time
-            print(batch_metrics(batch, data, timesteps, 
-                  lr, elapsed, log_interval, cur_loss))
-            total_loss = 0
-            start_time = time.time()
-    
 
+            
+#         total_loss += loss.item()
+        
+#         if batch % log_interval == 0 and batch > 0:
+#             cur_loss = total_loss / log_interval
+#             elapsed  = time.time() - start_time
+#             print(batch_metrics(batch, data, timesteps, 
+#                   lr, elapsed, log_interval, cur_loss))
+#             total_loss = 0
+#             start_time = time.time()
+
+
+
+def evaluate(model, data, criterion, ntokens, batch_size, timesteps, device):
+    model.eval()
+    total_loss = 0
+    hidden = model.init_hidden(batch_size)
+    hidden = (h.to(device) for h in hidden)
+    with th.no_grad():
+        for i in range(0, data.size(0) - 1, timesteps):
+            inputs, targets = get_batch(data, i, timesteps)
+            output, hidden = model(inputs, hidden)
+            output_flat = output.view(-1, ntokens)
+            total_loss += len(inputs) * criterion(output.view(-1, ntokens), targets.view(-1)).item()
+            hidden = repackage_hidden(hidden)
+    return total_loss / (len(data) - 1)
 
 
