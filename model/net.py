@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor as T
 
+
 """
 Adapted from: https://github.com/pytorch/benchmark/blob/master/rnns/benchmarks/lstm_variants/lstm.py
 """

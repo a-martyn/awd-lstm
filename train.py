@@ -5,6 +5,7 @@ import torch as th
 import torch.nn as nn
 
 from model.data_loader import get_batch
+from utils import batch_metrics
 
 
 def repackage_hidden(h):
@@ -15,15 +16,15 @@ def repackage_hidden(h):
         return tuple(repackage_hidden(v) for v in h)
 
 
-def train(model, data, criterion, optimizer, ntokens:int, batch_size:int, lr:float, bptt:int, clip):
+def train(model, data, criterion, optimizer, ntokens:int, batch_size:int, lr:float, timesteps:int, clip):
     log_interval = 1
     
     model.train()
     total_loss = 0
     start_time = time.time()
     hidden = model.init_hidden(batch_size)
-    for batch, i in enumerate(range(0, data.size(0)-1, bptt)):
-        inputs, targets = get_batch(data, i, bptt)
+    for batch, i in enumerate(range(0, data.size(0)-1, timesteps)):
+        inputs, targets = get_batch(data, i, timesteps)
         # For each batch, detach hidden state from state created in previous
         # batches. Else, the model would attempt backpropagation through the 
         # entire dataset
@@ -48,10 +49,8 @@ def train(model, data, criterion, optimizer, ntokens:int, batch_size:int, lr:flo
         if batch % log_interval == 0 and batch > 0:
             cur_loss = total_loss / log_interval
             elapsed  = time.time() - start_time
-            print('| {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
-                    'loss {:5.2f} | ppl {:8.2f}'.format(
-                batch, len(data) // bptt, lr,
-                elapsed * 1000 / log_interval, cur_loss, np.exp(cur_loss)))
+            print(batch_metrics(batch, data, timesteps, 
+                  lr, elapsed, log_interval, cur_loss))
             total_loss = 0
             start_time = time.time()
     
