@@ -16,13 +16,14 @@ def repackage_hidden(h):
         return tuple(repackage_hidden(v) for v in h)
 
 
-def train(model, data, criterion, optimizer, ntokens:int, batch_size:int, lr:float, timesteps:int, clip):
+def train(model, data, criterion, optimizer, ntokens:int, batch_size:int, lr:float, timesteps:int, clip, device):
     log_interval = 1
     
     model.train()
     total_loss = 0
     start_time = time.time()
     hidden = model.init_hidden(batch_size)
+    hidden = (h.to(device) for h in hidden)
     for batch, i in enumerate(range(0, data.size(0)-1, timesteps)):
         inputs, targets = get_batch(data, i, timesteps)
         # For each batch, detach hidden state from state created in previous

@@ -78,7 +78,7 @@ val_loss = 100000000000000000000
 for epoch in range(1, epochs+1):
     epoch_start_time = time.time()
     optimizer = nt_asgd.get_optimizer(val_loss, params)
-    train(model, train_data, criterion, optimizer, ntokens, batch_size, lr, timesteps, clip)
+    train(model, train_data, criterion, optimizer, ntokens, batch_size, lr, timesteps, clip, device)
     val_loss = evaluate(model, val_data, criterion, ntokens, batch_size, timesteps)
     print(epoch_metrics(epoch, epoch_start_time, val_loss))
 
