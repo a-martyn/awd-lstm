@@ -18,10 +18,7 @@ def repackage_hidden(h):
 
 
 def train(model, data, criterion, optimizer, ntokens:int, batch_size:int, lr:float, timesteps:int, clip, device):
-    log_interval = 1
     model.train()
-    total_loss = 0
-    start_time = time.time()
     hidden = model.init_hidden(batch_size)
     hidden = (h.to(device) for h in hidden)
     for batch, i in tqdm(enumerate(range(0, data.size(0)-1, timesteps))):
@@ -38,23 +35,13 @@ def train(model, data, criterion, optimizer, ntokens:int, batch_size:int, lr:flo
         loss = criterion(output.view(-1, ntokens), targets.view(-1))
         # Backpropagate
         loss.backward()
-        optimizer.step()
         
-        # TODO: Check clipping config
+        # Gradient clipping
         nn.utils.clip_grad_norm_(model.parameters(), clip)
-        for p in model.parameters():
-            p.data.add_(-lr, p.grad.data)
+        optimizer.step()
 
-            
-#         total_loss += loss.item()
-        
-#         if batch % log_interval == 0 and batch > 0:
-#             cur_loss = total_loss / log_interval
-#             elapsed  = time.time() - start_time
-#             print(batch_metrics(batch, data, timesteps, 
-#                   lr, elapsed, log_interval, cur_loss))
-#             total_loss = 0
-#             start_time = time.time()
+        return model.parameters()
+
 
 
 
