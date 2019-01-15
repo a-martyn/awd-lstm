@@ -20,6 +20,7 @@ print(f'Running on: {device}')
 # Globals
 # --------------------------------------------------
 path = './data/penn/'
+MODEL_PATH = 'pretrained/awd_lstm.pt'
 batch_size = 20
 
 
@@ -64,7 +65,7 @@ dropout = 0.25   # authours use --dropouti 0.4 --dropouth 0.25
 model = net.AWD_LSTM(ntokens, emsize, nhid, dropout=dropout, device=device).to(device)
 # TODO: Check loss matches paper
 criterion = nn.CrossEntropyLoss()
-params = list(model.parameters()) + list(criterion.parameters())
+params = model.parameters()
 nt_asgd = NT_ASGD(lr, weight_decay, non_monotone)
 
 # TRAIN MODEL
@@ -72,16 +73,23 @@ nt_asgd = NT_ASGD(lr, weight_decay, non_monotone)
 
 # set validation looss arbitrarily high initially 
 # as hack to avoid ASGD triggering
+losses = []
 val_loss = 100000000000000000000 
 
 for epoch in range(1, epochs+1):
     epoch_start_time = time.time()
     optimizer = nt_asgd.get_optimizer(val_loss, params)
     model_params = train(model, train_data, criterion, optimizer, ntokens, batch_size, lr, timesteps, clip, device)
-    params = list(model_params) + list(criterion.parameters())
+    params = list(model_params)
     
     val_loss = evaluate(model, val_data, criterion, ntokens, batch_size, timesteps, device)
+    losses.append(val_loss)
     print(epoch_metrics(epoch, epoch_start_time, val_loss))
+
+    # Save best model
+    if MODEL_PATH and (val_loss < min(losses)):
+        print('Saving model')
+        th.save(model.state_dict(), MODEL_PATH)
 
 
 
