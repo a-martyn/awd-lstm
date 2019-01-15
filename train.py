@@ -37,10 +37,11 @@ def train(model, data, criterion, optimizer, ntokens:int, batch_size:int, lr:flo
         loss.backward()
         
         # Gradient clipping
+        # Note: criterion parameters aren't being clipped here
         nn.utils.clip_grad_norm_(model.parameters(), clip)
         optimizer.step()
 
-        return model.parameters()
+    return model.parameters()
 
 
 
@@ -54,7 +55,6 @@ def evaluate(model, data, criterion, ntokens, batch_size, timesteps, device):
         for i in range(0, data.size(0) - 1, timesteps):
             inputs, targets = get_batch(data, i, timesteps)
             output, hidden = model(inputs, hidden)
-            output_flat = output.view(-1, ntokens)
             total_loss += len(inputs) * criterion(output.view(-1, ntokens), targets.view(-1)).item()
             hidden = repackage_hidden(hidden)
     return total_loss / (len(data) - 1)
