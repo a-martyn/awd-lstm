@@ -205,12 +205,14 @@ class AWD_LSTM(nn.Module):
 
 
     def forward(self, x:th.LongTensor, hiddens):
+        # Encode input
+        # ----------------------------------------------------------------
         # Translate input tokens to embedding vectors
         # with dropout
         x = self.embedding_dropout(self.embedding, x, p=self.dropout_emb)
 
         # LSTM
-        # --------------
+        # ----------------------------------------------------------------
         # Apply DropConnect to hidden-to-hidden weights 
         # once for each forward pass
         self.weight_dropout(p=self.dropout_wts)
@@ -244,7 +246,9 @@ class AWD_LSTM(nn.Module):
             h = [h0, h1, h2]
             c = [c0, c1, c2]
             output = th.cat((output, z2.unsqueeze(0)))
-
+        
+        # Decode output
+        # ----------------------------------------------------------------
         # Translate embedding vectors to tokens
         reshaped = output.view(output.size(0)*output.size(1), output.size(2))
         decoded = self.decoder(reshaped)
