@@ -73,7 +73,7 @@ nt_asgd = NT_ASGD(lr, weight_decay, non_monotone)
 
 # set validation looss arbitrarily high initially 
 # as hack to avoid ASGD triggering
-losses = []
+best_loss = 100000000000000000000
 val_loss = 100000000000000000000 
 
 for epoch in range(1, epochs+1):
@@ -83,13 +83,13 @@ for epoch in range(1, epochs+1):
     params = list(model_params)
     
     val_loss = evaluate(model, val_data, criterion, ntokens, batch_size, timesteps, device)
-    losses.append(val_loss)
     print(epoch_metrics(epoch, epoch_start_time, val_loss))
 
     # Save best model
-    if MODEL_PATH and (val_loss < min(losses)):
+    if val_loss < best_loss:
         print('Saving model')
         th.save(model.state_dict(), MODEL_PATH)
+        best_loss = val_loss
 
 
 
