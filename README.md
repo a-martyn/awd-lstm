@@ -14,11 +14,15 @@
   - Should variational dropout be applied to cell state? ASSUMPTION: No
 
 - 4.3 [x] Embedding dropout 
-- 4.4 [ ] Weight tying 
-- 4.5 [ ] Independant embedding size and hidden-size
+- 4.4 [x] Weight tying 
+- 4.5 [x] Independant embedding size and hidden-size
 - 4.6 [ ] Activation Regularization (AR) and Temporal Activation Regularization (TAR)
 
 
-- Follow stanford's reccomended project structure: 
+- Follow stanford's recommended project structure: 
   - https://cs230-stanford.github.io/pytorch-getting-started.html
   - https://github.com/cs230-stanford/cs230-code-examples/tree/master/pytorch/nlp
+
+
+Irregularities in awd-lstm salesforce repo:
+- decoder doesn't appear to be implemented in forward pass.

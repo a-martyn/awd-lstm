@@ -68,20 +68,20 @@ class LSTMCell(nn.Module):
 
     """
 
-    def __init__(self, input_size, hidden_size, bias=True):
+    def __init__(self, input_size, output_size, bias=True):
         super(LSTMCell, self).__init__()
         
         # Contains all weights for the 4 linear mappings of the input x
         # e.g. Wi, Wf, Wo, Wc
-        self.i2h = nn.Linear(input_size, 4*hidden_size, bias=bias)
+        self.i2h = nn.Linear(input_size, 4*output_size, bias=bias)
         # Contains all weights for the 4 linear mappings of the hidden state h
         # e.g. Ui, Uf, Uo, Uc
-        self.h2h = nn.Linear(hidden_size, 4*hidden_size, bias=bias)
-        self.hidden_size = hidden_size
+        self.h2h = nn.Linear(output_size, 4*output_size, bias=bias)
+        self.output_size = output_size
         self.reset_parameters()
 
     def reset_parameters(self):
-        std = 1.0 / math.sqrt(self.hidden_size)
+        std = 1.0 / math.sqrt(self.output_size)
         for w in self.parameters():
             w.data.uniform_(-std, std)
 
@@ -89,14 +89,14 @@ class LSTMCell(nn.Module):
         # unpack tuple (recurrent activations, recurrent cell state)
         h, c = hidden
 
-        # Linear mappings : all four in one hit
+        # Linear mappings : all four in one vectorised computation
         preact = self.i2h(x) + self.h2h(h)
 
         # Activations
-        i = th.sigmoid(preact[:, :self.hidden_size])                      # input gate
-        f = th.sigmoid(preact[:, self.hidden_size:2*self.hidden_size])    # forget gate
-        g = th.tanh(preact[:, 3*self.hidden_size:])                       # cell gate
-        o = th.sigmoid(preact[:, 2*self.hidden_size:3*self.hidden_size])  # ouput gate
+        i = th.sigmoid(preact[:, :self.output_size])                      # input gate
+        f = th.sigmoid(preact[:, self.output_size:2*self.output_size])    # forget gate
+        g = th.tanh(preact[:, 3*self.output_size:])                       # cell gate
+        o = th.sigmoid(preact[:, 2*self.output_size:3*self.output_size])  # ouput gate
 
 
         # Cell state computations: 
@@ -126,23 +126,46 @@ class AWD_LSTM(nn.Module):
         self.embedding = nn.Embedding(ntokens, embedding_size)
         self.layer0 = LSTMCell(embedding_size, hidden_size, bias=bias)
         self.layer1 = LSTMCell(hidden_size, hidden_size, bias=bias)
-        self.layer2 = LSTMCell(hidden_size, hidden_size, bias=bias)
-        self.decoder = nn.Linear(hidden_size, ntokens)
-
-        self.varidrop_h = VariationalDropout(p=dropout)
+        self.layer2 = LSTMCell(hidden_size, embedding_size, bias=bias)
+        self.decoder = nn.Linear(embedding_size, ntokens)
 
         self.nlayers = 3
         self.hidden_size = hidden_size
-        self.dropout = dropout
-        self.dropoute = 0.1
+        self.embedding_size = embedding_size
         self.device = device
 
-    def init_hidden(self, batch_size):
-        weight = next(self.parameters())
-        return (weight.new_zeros(self.nlayers, batch_size, self.hidden_size),
-                weight.new_zeros(self.nlayers, batch_size, self.hidden_size))
+        # Dropout
+        # TODO: expose dropout settings to api
+        # QUESTION: How did authors arrive at these dropout parameters?
+        self.dropout_wts = 0.5
+        self.dropout_emb = 0.1
+        self.dropout_inp = 0.4
+        self.dropout_hid = 0.25
+        self.varidrop_inp = VariationalDropout(p=self.dropout_inp)
+        self.varidrop_hid = VariationalDropout(p=self.dropout_hid)
+        self.varidrop_out = VariationalDropout(p=self.dropout_hid)
 
-    def drop_connect(self, p=0.5):
+        # Weight tying
+        self.decoder.weight = self.embedding.weight
+    
+
+    def init_hiddens(self, batch_size):
+        """
+        Create initial tensors as input to timestep 0
+        for each of the layers.
+        """
+        weight = next(self.parameters())
+        # hidden activations
+        h = [weight.new_zeros(batch_size, self.hidden_size),     # layer0
+             weight.new_zeros(batch_size, self.hidden_size),     # layer1
+             weight.new_zeros(batch_size, self.embedding_size)]  # layer2
+        # cells state
+        c = [weight.new_zeros(batch_size, self.hidden_size),     # layer0 
+             weight.new_zeros(batch_size, self.hidden_size),     # layer1
+             weight.new_zeros(batch_size, self.embedding_size)]  # layer2
+        return (h, c)
+
+    def weight_dropout(self, p=0.5):
         """
         Applies recurrent regularization through a DropConnect mask on the
         hidden-to-hidden recurrent weights as described here:
@@ -155,39 +178,42 @@ class AWD_LSTM(nn.Module):
         self.load_state_dict(sd)
         return
 
-    def embedded_dropout(self, embed, words, p=0.1):
+    def embedding_dropout(self, embed, words, p=0.1):
         """
+        Randomly drops whole word embeddings. As descride in section 
+        4.3 Embedding Dropout of original paper.
+        Largely adapted from: 
+        https://github.com/salesforce/awd-lstm-lm/blob/master/embed_regularize.py
         TODO: re-write and add test
         """
         if not self.training:
-              masked_embed_weight = embed.weight
+            masked_embed_weight = embed.weight
         elif not p:
-          masked_embed_weight = embed.weight
+            masked_embed_weight = embed.weight
         else:
-          mask = embed.weight.data.new().resize_((embed.weight.size(0), 1)).bernoulli_(1 - p).expand_as(embed.weight) / (1 - p)
-          masked_embed_weight = mask * embed.weight
+            mask = embed.weight.data.new().resize_((embed.weight.size(0), 1)).bernoulli_(1 - p).expand_as(embed.weight) / (1 - p)
+            masked_embed_weight = mask * embed.weight
     
         padding_idx = embed.padding_idx
         if padding_idx is None:
             padding_idx = -1
     
         X = F.embedding(words, masked_embed_weight,
-          padding_idx, embed.max_norm, embed.norm_type,
-          embed.scale_grad_by_freq, embed.sparse
-        )
+                        padding_idx, embed.max_norm, embed.norm_type,
+                        embed.scale_grad_by_freq, embed.sparse)
         return X
 
 
-    def forward(self, x, hiddens):
+    def forward(self, x:th.LongTensor, hiddens):
         # Translate input tokens to embedding vectors
         # with dropout
-        x = self.embedded_dropout(self.embedding, x, p=self.dropoute)
+        x = self.embedding_dropout(self.embedding, x, p=self.dropout_emb)
 
         # LSTM
         # --------------
         # Apply DropConnect to hidden-to-hidden weights 
         # once for each forward pass
-        self.drop_connect(p=self.dropout)
+        self.weight_dropout(p=self.dropout_wts)
 
 
         # At each timestep t, forward propagate down through layers
@@ -205,15 +231,19 @@ class AWD_LSTM(nn.Module):
             # Note: using 3 layers here as per paper
             # .clone() is needed to avoid break in computation graph see:
             # https://discuss.pytorch.org/t/encounter-the-runtimeerror-one-of-the-variables-needed-for-gradient-computation-has-been-modified-by-an-inplace-operation/836
-            zt_l0 = x[t,:,:].clone()
-            zt_l1, (h[0,:,:], c[0,:,:]) = self.layer0(zt_l0, (h[0,:,:].clone(), c[0,:,:].clone()))
-            zt_l1 = self.varidrop_h(zt_l1, t)
-            zt_l2, (h[1,:,:], c[1,:,:]) = self.layer1(zt_l1, (h[1,:,:].clone(), c[1,:,:].clone()))
-            zt_l2 = self.varidrop_h(zt_l2, t)
-            zt_l3, (h[2,:,:], c[2,:,:]) = self.layer2(zt_l2, (h[2,:,:].clone(), c[2,:,:].clone()))
-            zt_l3 = self.varidrop_h(zt_l3, t)
-            # Record output from final layer at this timestep
-            output = th.cat((output, zt_l3.unsqueeze(0)))
+            inp = x[t,:,:].clone()
+            inp = self.varidrop_inp(inp, t)
+            z0, (h0, c0) = self.layer0(inp, (h[0].clone(), c[0].clone()))
+            z0 = self.varidrop_hid(z0, t)
+            z1, (h1, c1) = self.layer1(z0, (h[1].clone(), c[1].clone()))
+            z1 = self.varidrop_hid(z1, t)
+            z2, (h2, c2) = self.layer2(z1, (h[2].clone(), c[2].clone()))
+            # Note: Can't use the same variational dropout mask here because
+            # the final layer outputs a different sized matrix.
+            z2 = self.varidrop_out(z2, t)
+            h = [h0, h1, h2]
+            c = [c0, c1, c2]
+            output = th.cat((output, z2.unsqueeze(0)))
 
         # Translate embedding vectors to tokens
         reshaped = output.view(output.size(0)*output.size(1), output.size(2))
