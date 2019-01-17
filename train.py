@@ -73,7 +73,7 @@ def evaluate(model, data, criterion, ntokens, batch_size, timesteps, device):
     #hidden = (h.to(device) for h in hidden)
     with th.no_grad():
         for i in range(0, data.size(0) - 1, timesteps):
-            inputs, targets = get_batch(data, i, timesteps)
+            inputs, targets, _ = get_batch(data, i, timesteps)
             output, hiddens = model(inputs, hiddens)
             total_loss += len(inputs) * criterion(output.view(-1, ntokens), targets.view(-1)).item()
             hiddens = repackage_hidden(hiddens)
