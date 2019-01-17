@@ -134,6 +134,10 @@ class AWD_LSTM(nn.Module):
         self.embedding_size = embedding_size
         self.device = device
 
+        # Store activations for AR and TAR regularisation
+        self.output = None
+        self.output_nodrop = None
+
         # Dropout
         # TODO: expose dropout settings to api
         # QUESTION: How did authors arrive at these dropout parameters?
@@ -146,6 +150,8 @@ class AWD_LSTM(nn.Module):
         self.varidrop_out = VariationalDropout(p=self.dropout_hid)
 
         # Weight tying
+        # https://arxiv.org/abs/1608.05859
+        # https://arxiv.org/abs/1611.01462
         self.decoder.weight = self.embedding.weight
     
 
@@ -204,6 +210,45 @@ class AWD_LSTM(nn.Module):
         return X
 
 
+    def activation_reg(self, alpha):
+        """
+        Calulates a regularisation factor that increases with magnitude of
+        activations from the final recurrent layer.
+        See section 4.6 of paper: https://arxiv.org/abs/1708.02182
+        
+        Returns an integer that can be added to loss after each forward pass.
+        """
+        # The authors report that they apply the L_2 norm denoted ||.||_2
+        # but they actually implement code equivalent to the following
+        # which is missig a square root operation:
+        # ar = sum(alpha * a.pow(2).mean() for a in self.output)
+        # return ar
+        # I assume that the mean is intended to be across timesteps
+        # and also across items in this batch
+        # So we want the mean L2 norm across all timesteps, across all
+        # items in this mini-batch. Verbosely this can be written as:
+        # ar = [th.sqrt(th.sum(a.pow(2), dim=1)).mean() for a in self.output]
+        # return alpha * (sum(ar)/len(ar)))
+        # Using pytorch's built in torch.norm 
+        masked_ht = self.output
+        L2_t = [th.norm(a, dim=1, p='fro').mean() for a in masked_ht]
+        return alpha * th.mean(T(L2_t)).item()
+
+
+    def temporal_activation_reg(self, beta):
+        # Not sure if this would be better returning average (as current) 
+        # or max?
+        ht = self.output_nodrop
+        L2_norms_t = []
+        for timestep in range(ht.size(0)-1):
+            diff = ht[timestep] - ht[timestep+1]
+            L2_norm_per_batch = th.norm(diff, dim=1, p='fro')
+            L2_norm_mean = th.mean(L2_norm_per_batch).item()
+            L2_norms_t.append(L2_norm_mean)
+        
+        return beta * th.mean(T(L2_norms_t))
+
+
     def forward(self, x:th.LongTensor, hiddens):
         # Encode input
         # ----------------------------------------------------------------
@@ -228,24 +273,32 @@ class AWD_LSTM(nn.Module):
 
         h, c = hiddens
         output = T().to(self.device)
+        output_nodrop = T().to(self.device)
         for t in range(x.size(0)): 
             # Propagate through layers for each timestep
             # Note: using 3 layers here as per paper
             # .clone() is needed to avoid break in computation graph see:
             # https://discuss.pytorch.org/t/encounter-the-runtimeerror-one-of-the-variables-needed-for-gradient-computation-has-been-modified-by-an-inplace-operation/836
             inp = x[t,:,:].clone()
-            inp = self.varidrop_inp(inp, t)
-            z0, (h0, c0) = self.layer0(inp, (h[0].clone(), c[0].clone()))
-            z0 = self.varidrop_hid(z0, t)
-            z1, (h1, c1) = self.layer1(z0, (h[1].clone(), c[1].clone()))
-            z1 = self.varidrop_hid(z1, t)
-            z2, (h2, c2) = self.layer2(z1, (h[2].clone(), c[2].clone()))
+            inp_d = self.varidrop_inp(inp, t)
+            z0, (h0, c0) = self.layer0(inp_d, (h[0].clone(), c[0].clone()))
+            z0_d = self.varidrop_hid(z0, t)
+            z1, (h1, c1) = self.layer1(z0_d, (h[1].clone(), c[1].clone()))
+            z1_d = self.varidrop_hid(z1, t)
+            z2, (h2, c2) = self.layer2(z1_d, (h[2].clone(), c[2].clone()))
             # Note: Can't use the same variational dropout mask here because
             # the final layer outputs a different sized matrix.
-            z2 = self.varidrop_out(z2, t)
+            z2_d = self.varidrop_out(z2, t)
             h = [h0, h1, h2]
             c = [c0, c1, c2]
-            output = th.cat((output, z2.unsqueeze(0)))
+            output = th.cat((output, z2_d.unsqueeze(0)))
+            output_nodrop = th.cat((output_nodrop, z2.unsqueeze(0)))
+    
+        # Store outputs for AR and TAR regularisation
+        # Detach because we don't want subequent calcs to affect
+        # backpropagation
+        self.output = output.detach()
+        self.output_nodrop = output_nodrop.detach()
         
         # Decode output
         # ----------------------------------------------------------------

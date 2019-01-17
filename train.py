@@ -17,7 +17,8 @@ def repackage_hidden(h):
         return tuple(repackage_hidden(v) for v in h)
 
 
-def train(model, data, criterion, optimizer, ntokens:int, batch_size:int, lr:float, timesteps:int, clip, device):
+def train(model, data, criterion, optimizer, ntokens:int, batch_size:int, 
+          lr:float, timesteps:int, clip, device, alpha, beta):
     model.train()
     hiddens = model.init_hiddens(batch_size)
     #hidden = (h.to(device) for h in hidden)
@@ -31,8 +32,15 @@ def train(model, data, criterion, optimizer, ntokens:int, batch_size:int, lr:flo
         optimizer.zero_grad()
         # Forward pass
         output, hiddens = model(inputs, hiddens)
+        
         # Calculate loss
+        # with Activation Regularisation and
+        # Temporal Activation Regularisation
         loss = criterion(output.view(-1, ntokens), targets.view(-1))
+        ar  = model.activation_reg(alpha)
+        tar = model.temporal_activation_reg(beta)
+        loss = loss + ar + tar
+
         # Backpropagate
         loss.backward()
         

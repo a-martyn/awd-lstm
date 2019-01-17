@@ -60,7 +60,9 @@ nhid = 1550
 clip = 0.25
 weight_decay = 1.2e-6
 non_monotone = 5
-dropout = 0.25   # authours use --dropouti 0.4 --dropouth 0.25
+dropout = 0.5   # authours use --dropouti 0.4 --dropouth 0.25
+alpha = 2       # alpha L2 regularization on RNN activation (zero means no regularisation)
+beta = 1        # beta slowness regularization applied on RNN activiation (zero means no regularisation)
 
 model = net.AWD_LSTM(ntokens, emsize, nhid, dropout=dropout, device=device).to(device)
 # TODO: Check loss matches paper
@@ -79,7 +81,8 @@ val_loss = 100000000000000000000
 for epoch in range(1, epochs+1):
     epoch_start_time = time.time()
     optimizer = nt_asgd.get_optimizer(val_loss, params)
-    model_params = train(model, train_data, criterion, optimizer, ntokens, batch_size, lr, timesteps, clip, device)
+    model_params = train(model, train_data, criterion, optimizer, ntokens, 
+                         batch_size, lr, timesteps, clip, device, alpha, beta)
     params = list(model_params)
     
     val_loss = evaluate(model, val_data, criterion, ntokens, batch_size, timesteps, device)
