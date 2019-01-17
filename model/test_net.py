@@ -14,7 +14,6 @@ class Tests(unittest.TestCase):
         # Instantiate an LSTM net with weight dropout on 
         # hidden-to-hidden weights
         model = net.AWD_LSTM(10, 20, 2)
-        old_state = model.state_dict()
 
         # Apply drop connect with probabilit 1.0
         model.weight_dropout(p=1.0) 

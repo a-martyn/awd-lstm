@@ -1,6 +1,8 @@
 import os
 from io import open
+import numpy as np
 import torch as th
+
 
 
 class Dictionary(object):
@@ -78,7 +80,7 @@ def batch(data, batch_size):
     return data
 
 
-def get_batch(data, i, bptt):
+def get_batch(data, i, seq_len, jitter=False):
     """
     get_batch subdivides the source data into chunks of length bptt.
     If data is equal to the example output of the batch function, with
@@ -90,10 +92,14 @@ def get_batch(data, i, bptt):
 
     Adapted from: https://github.com/pytorch/examples/blob/master/word_language_model/main.py
     """
-    seq_len = min(bptt, len(data)-1-i)
+    if jitter:
+        seq_len = seq_len if np.random.random() < 0.95 else seq_len/2
+        # prevent excessively small or negative lengths
+        seq_len = max(5, int(np.random.normal(seq_len, 5)))
+
+    seq_len = min(seq_len, len(data)-1-i)
     x = data[i:i+seq_len]
     y = data[i+1:i+1+seq_len]
-    return x, y
-
+    return x, y, seq_len
 
 
