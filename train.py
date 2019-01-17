@@ -19,11 +19,24 @@ def repackage_hidden(h):
 
 def train(model, data, criterion, optimizer, ntokens:int, batch_size:int, 
           lr:float, timesteps:int, clip, device, alpha, beta):
-    model.train()
+    
     hiddens = model.init_hiddens(batch_size)
     #hidden = (h.to(device) for h in hidden)
+
+    # TODO: Should this now be a while loop to account for variable
+    # sequence length?
     for batch, i in tqdm(enumerate(range(0, data.size(0)-1, timesteps))):
-        inputs, targets = get_batch(data, i, timesteps)
+        # Get batches for this epoch with variable sequence length
+        inputs, targets, seq_len = get_batch(data, i, timesteps, jitter=True)
+        print(seq_len)
+
+        # learning rate scaling based on seq_length
+        # "necessary as sampling arbitrary sequence lengths with a fixed
+        # learning rate favours short sequences over longer ones"
+        lr2 = optimizer.param_groups[0]['lr'] 
+        optimizer.param_groups[0]['lr'] = lr2 * seq_len / timesteps
+        model.train()
+
         # For each batch, detach hidden state from state created in previous
         # batches. Else, the model would attempt backpropagation through the 
         # entire dataset

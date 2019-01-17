@@ -6,7 +6,7 @@
 
 - 3. [x] Optimisation ASGD: Averaged stochastic gradient descent. Starts averaging parameters from n previous times steps beyond some trigger point, in this case when the validation maetric fails to improve for multiple succesive optimisation steps.
 
-- 4.1 [ ] Variable length backpropagation sequences 
+- 4.1 [x] Variable length backpropagation sequences 
 
 - 4.2 [x] Variational dropout
 
@@ -16,7 +16,7 @@
 - 4.3 [x] Embedding dropout 
 - 4.4 [x] Weight tying 
 - 4.5 [x] Independant embedding size and hidden-size
-- 4.6 [ ] Activation Regularization (AR) and Temporal Activation Regularization (TAR)
+- 4.6 [x] Activation Regularization (AR) and Temporal Activation Regularization (TAR)
 
 
 - Follow stanford's recommended project structure: 
@@ -26,3 +26,7 @@
 
 Irregularities in awd-lstm salesforce repo:
 - decoder doesn't appear to be implemented in forward pass.
+- AR and TAR regularisation don't implement square root
+
+Ideas
+- could just use a linear mapping with no learnable params for decoder, bc due to weight tying there's no learnable weights
