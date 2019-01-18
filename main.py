@@ -79,7 +79,7 @@ nt_asgd = NT_ASGD(lr, weight_decay, non_monotone)
 best_loss = 100000000000000000000
 val_loss = 100000000000000000000 
 
-cols = epoch_metrics(0, 0, 0, 0, device).keys()
+cols = list(epoch_metrics(0, 0, 0, 0, device).keys())
 results_df = pd.DataFrame(columns=cols).set_index('epoch')
 
 for epoch in range(1, epochs+1):
@@ -90,10 +90,11 @@ for epoch in range(1, epochs+1):
     params = list(model_params)
     
     # Record evaluation metrics
-    train_loss = evaluate(model, train_data, criterion, ntokens, batch_size, timesteps, device)
+    #train_loss = evaluate(model, train_data, criterion, ntokens, batch_size, timesteps, device)
+    train_loss = 10
     val_loss   = evaluate(model, val_data, criterion, ntokens, batch_size, timesteps, device)
     metrics    = epoch_metrics(epoch, start_time, train_loss, val_loss, device)
-    results_df.loc[epoch] = metrics.values()[1:]
+    results_df.loc[epoch] = list(metrics.values())[1:]
     results_df.to_csv(RESULTS_PATH)
     print(stringify(metrics))
 
