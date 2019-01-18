@@ -60,3 +60,15 @@ class NT_ASGD():
         return optimizer
 
 
+import torch
+import gc
+
+def trace_memory():
+    """
+    https://discuss.pytorch.org/t/how-to-debug-causes-of-gpu-memory-leaks/6741/24
+    """
+    for obj in gc.get_objects():
+        try:
+            if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
+                print(type(obj), obj.size())
+        except: pass

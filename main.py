@@ -12,9 +12,8 @@ from utils import epoch_metrics, NT_ASGD
 
 from pprint import pprint
 
-
 # Choose device
-device = th.device('cuda:0' if th.cuda.is_available() else 'cpu')
+device = th.device('cuda:0' if th.cuda.is_available() else 'cpu')ß
 print(f'Running on: {device}')
 
 # Globals

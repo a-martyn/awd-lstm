@@ -6,8 +6,7 @@ import torch as th
 import torch.nn as nn
 
 from model.data_loader import get_batch
-from utils import batch_metrics
-
+from utils import batch_metrics, trace_memory
 
 def repackage_hidden(h):
     """Wraps hidden states in new Tensors, to detach them from their history"""
@@ -60,6 +59,16 @@ def train(model, data, criterion, optimizer, ntokens:int, batch_size:int,
         # Note: criterion parameters aren't being clipped here
         nn.utils.clip_grad_norm_(model.parameters(), clip)
         optimizer.step()
+
+        if device == th.device('cuda:0'):
+            max_memalloc = th.cuda.max_memory_allocated(device=device)
+            max_memcache = th.cuda.max_memory_cached(device=device)
+            print(f'\nmax_memalloc:\n{max_memalloc}')
+            print(f'\nmax_memcache:\n{max_memcache}')
+            # memalloc = th.cuda.memory_allocated(device=device)
+            # memcache = th.cuda.memory_cached(device=device)
+            # print(f'\nmemalloc:\n{memalloc}')
+            # print(f'\nmemcache:\n{memcache}')
 
     return model.parameters()
 
