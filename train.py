@@ -59,16 +59,9 @@ def train(model, data, criterion, optimizer, ntokens:int, batch_size:int,
         # Note: criterion parameters aren't being clipped here
         nn.utils.clip_grad_norm_(model.parameters(), clip)
         optimizer.step()
-
-        if (i%100==0) and (device == th.device('cuda:0')):
-            memalloc = th.cuda.memory_allocated(device=device)
-            memcache = th.cuda.memory_cached(device=device)
-            print(f'\nmemalloc:\n{memalloc/1e+6}Mb')
-            print(f'\nmemcache:\n{memcache/1e+6}Mb')
-            max_memalloc = th.cuda.max_memory_allocated(device=device)
-            max_memcache = th.cuda.max_memory_cached(device=device)
-            print(f'\nmax_memalloc:\n{max_memalloc/1e+6}Mb' )
-            print(f'\nmax_memcache:\n{max_memcache/1e+6}Mb')
+        
+        if batch == 10:
+            break
 
     return model.parameters()
 

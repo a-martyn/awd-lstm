@@ -1,5 +1,6 @@
 import time
 import numpy as np
+import pandas as pd
 
 import torch as th
 import torch.nn as nn
@@ -8,7 +9,7 @@ import torch.optim as optim
 import model.net as net
 from model.data_loader import Dictionary, tokenise, batch
 from train import train, evaluate
-from utils import epoch_metrics, NT_ASGD
+from utils import epoch_metrics, stringify, NT_ASGD
 
 from pprint import pprint
 
@@ -20,6 +21,7 @@ print(f'Running on: {device}')
 # --------------------------------------------------
 path = './data/penn/'
 MODEL_PATH = 'pretrained/awd_lstm.pt'
+RESULTS_PATH = 'results/awd_lstm_fixed_seq_len.csv'
 batch_size = 20
 
 
@@ -77,21 +79,30 @@ nt_asgd = NT_ASGD(lr, weight_decay, non_monotone)
 best_loss = 100000000000000000000
 val_loss = 100000000000000000000 
 
+cols = epoch_metrics(0, 0, 0, 0, device).keys()
+results_df = pd.DataFrame(columns=cols).set_index('epoch')
+
 for epoch in range(1, epochs+1):
-    epoch_start_time = time.time()
+    start_time = time.time()
     optimizer = nt_asgd.get_optimizer(val_loss, params)
     model_params = train(model, train_data, criterion, optimizer, ntokens, 
                          batch_size, lr, timesteps, clip, device, alpha, beta)
     params = list(model_params)
     
-    val_loss = evaluate(model, val_data, criterion, ntokens, batch_size, timesteps, device)
-    print(epoch_metrics(epoch, epoch_start_time, val_loss))
+    # Record evaluation metrics
+    train_loss = evaluate(model, train_data, criterion, ntokens, batch_size, timesteps, device)
+    val_loss   = evaluate(model, val_data, criterion, ntokens, batch_size, timesteps, device)
+    metrics    = epoch_metrics(epoch, start_time, train_loss, val_loss, device)
+    results_df.loc[epoch] = metrics.values()
+    results_df.to_csv(RESULTS_PATH)
+    print(stringify(metrics))
 
     # Save best model
     if val_loss < best_loss:
         print('Saving model')
         th.save(model.state_dict(), MODEL_PATH)
         best_loss = val_loss
+
         
 
 

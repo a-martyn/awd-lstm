@@ -1,17 +1,35 @@
 import numpy as np
 import math
 import time
+import torch as th
 import torch.optim as optim
 
 
-def epoch_metrics(epoch, epoch_start_time, val_loss):
-    metrics = [f'| epoch {epoch:3d} ',
-               f'| time: {(time.time() - epoch_start_time):5.2f}s ',
-               f'| valid loss {val_loss:5.2f} ',
-               f'| valid ppl {math.exp(val_loss):8.2f} ',
-               f'| valid bpc {val_loss / math.log(2):8.3f}']
-    return ''.join(metrics)
-    
+
+def epoch_metrics(epoch, start_time, train_loss, val_loss, device):
+    metrics = {
+        'epoch': epoch,
+        'time': time.time() - start_time,
+        'train_loss': train_loss,
+        'val_loss'  : val_loss,
+        'train_ppl' : math.exp(train_loss),
+        'val_ppl'   : math.exp(val_loss),
+        'val_bpc'   : val_loss / math.log(2),
+        'train_bpc' : train_loss / math.log(2)
+    }
+    # Get cuda memor metrics if device is cuda
+    if device == th.device('cuda'):
+        metrics['memalloc'] = th.cuda.memory_allocated(device=device)
+        metrics['memcache'] = th.cuda.memory_cached(device=device)
+        metrics['max_memalloc'] = th.cuda.max_memory_allocated(device=device)
+        metrics['max_memcache'] = th.cuda.max_memory_cached(device=device)
+    return metrics
+
+def stringify(dictionary:dict):
+    strings = [f'{k}: {v:.2f}' for k, v in dictionary]
+    return '| '.join(strings)   
+
+
 
 def batch_metrics(batch, data, timesteps, lr, elapsed, log_interval, cur_loss):
     metrics = [f'| {batch}/{len(data) // timesteps} batches ',
