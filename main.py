@@ -93,7 +93,7 @@ for epoch in range(1, epochs+1):
     train_loss = evaluate(model, train_data, criterion, ntokens, batch_size, timesteps, device)
     val_loss   = evaluate(model, val_data, criterion, ntokens, batch_size, timesteps, device)
     metrics    = epoch_metrics(epoch, start_time, train_loss, val_loss, device)
-    results_df.loc[epoch] = metrics.values()
+    results_df.loc[epoch] = metrics.values()[1:]
     results_df.to_csv(RESULTS_PATH)
     print(stringify(metrics))
 
