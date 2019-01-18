@@ -60,9 +60,6 @@ def train(model, data, criterion, optimizer, ntokens:int, batch_size:int,
         nn.utils.clip_grad_norm_(model.parameters(), clip)
         optimizer.step()
         
-        if batch == 10:
-            break
-
     return model.parameters()
 
 

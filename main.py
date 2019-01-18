@@ -49,7 +49,6 @@ train_data = train_data.to(device)
 val_data = val_data.to(device)
 test_data = test_data.to(device)
 
-
 # INIT MODEL
 # --------------------------------------------------
 
@@ -90,8 +89,9 @@ for epoch in range(1, epochs+1):
     params = list(model_params)
     
     # Record evaluation metrics
-    #train_loss = evaluate(model, train_data, criterion, ntokens, batch_size, timesteps, device)
-    train_loss = 10
+    # To save time just evaluate train_loss on first 3688 observations
+    # this might be improved by random sampling i guess
+    train_loss = evaluate(model, train_data[:3688], criterion, ntokens, batch_size, timesteps, device)
     val_loss   = evaluate(model, val_data, criterion, ntokens, batch_size, timesteps, device)
     metrics    = epoch_metrics(epoch, start_time, train_loss, val_loss, device)
     results_df.loc[epoch] = list(metrics.values())[1:]

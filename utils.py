@@ -26,7 +26,7 @@ def epoch_metrics(epoch, start_time, train_loss, val_loss, device):
     return metrics
 
 def stringify(dictionary:dict):
-    strings = [f'{k}: {v:.2f}' for k, v in dictionary]
+    strings = [f'{k}: {v:.2f}' for k, v in dictionary.items()]
     return '| '.join(strings)   
 
 
