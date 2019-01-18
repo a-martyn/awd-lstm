@@ -18,7 +18,7 @@ def epoch_metrics(epoch, start_time, train_loss, val_loss, device):
         'train_bpc' : train_loss / math.log(2)
     }
     # Get cuda memor metrics if device is cuda
-    if device == th.device('cuda'):
+    if device == th.device('cuda:0'):
         metrics['memalloc'] = th.cuda.memory_allocated(device=device)
         metrics['memcache'] = th.cuda.memory_cached(device=device)
         metrics['max_memalloc'] = th.cuda.max_memory_allocated(device=device)
