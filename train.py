@@ -26,7 +26,7 @@ def train(model, data, criterion, optimizer, ntokens:int, batch_size:int,
     # sequence length?
     for batch, i in tqdm(enumerate(range(0, data.size(0)-1, timesteps))):
         # Get batches for this epoch with variable sequence length
-        inputs, targets, seq_len = get_batch(data, i, timesteps, jitter=True)
+        inputs, targets, seq_len = get_batch(data, i, timesteps, jitter=False)
 
         # learning rate scaling based on seq_length
         # "necessary as sampling arbitrary sequence lengths with a fixed

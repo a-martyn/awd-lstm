@@ -93,7 +93,6 @@ for epoch in range(1, epochs+1):
         th.save(model.state_dict(), MODEL_PATH)
         best_loss = val_loss
         
-    th.cuda.empty_cache()
 
 
 
