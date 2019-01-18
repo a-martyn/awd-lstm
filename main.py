@@ -13,7 +13,7 @@ from utils import epoch_metrics, NT_ASGD
 from pprint import pprint
 
 # Choose device
-device = th.device('cuda:0' if th.cuda.is_available() else 'cpu')ß
+device = th.device('cuda:0' if th.cuda.is_available() else 'cpu')
 print(f'Running on: {device}')
 
 # Globals
@@ -92,6 +92,8 @@ for epoch in range(1, epochs+1):
         print('Saving model')
         th.save(model.state_dict(), MODEL_PATH)
         best_loss = val_loss
+        
+    th.cuda.empty_cache()
 
 
 
