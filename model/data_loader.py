@@ -2,7 +2,8 @@ import os
 from io import open
 import numpy as np
 import torch as th
-
+import torch.tensor as T
+from scipy.stats import truncnorm
 
 
 class Dictionary(object):
@@ -101,5 +102,52 @@ def get_batch(data, i, seq_len, jitter=False):
     x = data[i:i+seq_len]
     y = data[i+1:i+1+seq_len]
     return x, y, seq_len
+
+
+def gen_sequence_lengths(data, base_seq_len):
+    # sample all jittered sequence lengths
+    # slice data by sequence lengths to produce batches
+    total_data_len = data.size(0)
+    seq_lens = []
+    total_seq_len = 0
+    while total_seq_len < total_data_len:
+        # occasionally halve the base sequence length
+        mu = base_seq_len if np.random.random() < 0.95 else base_seq_len/2
+        # prevent excessively small or negative lengths
+        seq_len = max(5, int(np.random.normal(mu, 5)))
+        # add seqence lengths until total data length is exceeded
+        seq_lens.append(seq_len)
+        total_seq_len += seq_len
+    # remove last item because it exceed total_data_len
+    seq_lens = seq_lens[:-1]
+    # add final sequence that fits perfectly if greater than 5
+    remainder = total_data_len - sum(seq_lens)
+    if remainder > 5:
+        seq_lens.append(remainder)
+    
+    return seq_lens
+
+
+def get_batches(data, base_seq_len):
+    # Get seq lens
+    seq_lens = gen_sequence_lengths(data, base_seq_len)
+    # slice data into batches by seq_lens
+    batches = []
+    for i in range(len(seq_lens)):
+        seq_start = sum(seq_lens[:i-1])
+        seq_end = seq_start + seq_lens[i]
+        batches.append(data[seq_start: seq_end])
+
+    # order batches by descending sequence length
+    # this step is important to avoid excessive memory caching by pytorch
+    # if the first tensor created by model is the largest required
+    # then a new cache isn't required because model will never receive a larger
+    # input than its first. See discussion here:
+    # https://discuss.pytorch.org/t/how-to-debug-causes-of-gpu-memory-leaks/6741/11
+    # https://pytorch.org/docs/stable/nn.html#torch.nn.utils.rnn.pack_padded_sequence
+    batches.sort(key=len, reverse=True)
+
+    return batches
+
 
 
