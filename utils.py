@@ -3,7 +3,9 @@ import math
 import time
 import torch as th
 import torch.optim as optim
-
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 def epoch_metrics(epoch, start_time, train_loss, val_loss, device):
@@ -77,16 +79,3 @@ class NT_ASGD():
                                   weight_decay=self.weight_decay)
         return optimizer
 
-
-import torch
-import gc
-
-def trace_memory():
-    """
-    https://discuss.pytorch.org/t/how-to-debug-causes-of-gpu-memory-leaks/6741/24
-    """
-    for obj in gc.get_objects():
-        try:
-            if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
-                print(type(obj), obj.size())
-        except: pass
