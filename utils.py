@@ -87,7 +87,7 @@ def plot_memory_usage(results_csv_filepath:str, output_filepath='./results/memor
     x = df['epoch']
     y = [df['memalloc_Gb'], df['memcache_Gb']]
     plt.stackplot(x, y, labels=['memalloc_Gb', 'memcache_Gb'])
-    plt.legend(loc='upper left')
+    #plt.legend(loc='upper left')
     plt.xlabel('epoch')
     plt.ylabel('Gb')
     plt.title('Updated at: ' + str(datetime.now()))

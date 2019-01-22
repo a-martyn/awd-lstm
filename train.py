@@ -6,7 +6,7 @@ import torch as th
 import torch.nn as nn
 
 from model.data_loader import get_batch
-from utils import batch_metrics, trace_memory
+from utils import batch_metrics
 
 def repackage_hidden(h):
     """Wraps hidden states in new Tensors, to detach them from their history"""
