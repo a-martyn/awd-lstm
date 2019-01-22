@@ -48,9 +48,9 @@ def train(model, data, criterion, optimizer, ntokens:int, batch_size:int,
         # with Activation Regularisation and
         # Temporal Activation Regularisation
         loss = criterion(output.view(-1, ntokens), targets.view(-1))
-        ar  = model.activation_reg(alpha)
-        tar = model.temporal_activation_reg(beta)
-        loss = loss + ar + tar
+        # ar  = model.activation_reg(alpha)
+        # tar = model.temporal_activation_reg(beta)
+        # loss = loss + ar + tar
 
         # Backpropagate
         loss.backward()
