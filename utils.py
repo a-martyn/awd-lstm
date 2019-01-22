@@ -21,10 +21,10 @@ def epoch_metrics(epoch, start_time, train_loss, val_loss, device):
     }
     # Get cuda memor metrics if device is cuda
     if device == th.device('cuda:0'):
-        metrics['memalloc'] = th.cuda.memory_allocated(device=device)
-        metrics['memcache'] = th.cuda.memory_cached(device=device)
-        metrics['max_memalloc'] = th.cuda.max_memory_allocated(device=device)
-        metrics['max_memcache'] = th.cuda.max_memory_cached(device=device)
+        metrics['memalloc_Gb'] = th.cuda.memory_allocated(device=device) / 1e+9
+        metrics['memcache_Gb'] = th.cuda.memory_cached(device=device) / 1e+9
+        metrics['max_memalloc_Gb'] = th.cuda.max_memory_allocated(device=device) / 1e+9
+        metrics['max_memcache_Gb'] = th.cuda.max_memory_cached(device=device) / 1e+9
     return metrics
 
 def stringify(dictionary:dict):
