@@ -43,6 +43,14 @@ def batch_metrics(batch, data, timesteps, lr, elapsed, log_interval, cur_loss):
                f'| bpc {cur_loss / math.log(2):8.3f}']
     return ''.join(metrics)
 
+def batch_metrics2(device):
+    metrics = {}
+    if device == th.device('cuda:0'):
+        metrics['memalloc_Gb'] = th.cuda.memory_allocated(device=device) / 1e+9
+        metrics['memcache_Gb'] = th.cuda.memory_cached(device=device) / 1e+9
+        metrics['max_memalloc_Gb'] = th.cuda.max_memory_allocated(device=device) / 1e+9
+        metrics['max_memcache_Gb'] = th.cuda.max_memory_cached(device=device) / 1e+9
+    return metrics
 
 class NT_ASGD():
     """Non-monotonically triggered averaged stochastic gradient descent"""
@@ -54,7 +62,7 @@ class NT_ASGD():
         self.asgd_triggered = False 
         self.losses = []
     
-    def get_optimizer(self, val_loss, model_params):
+    def get_optimizer(self, val_loss):
         n = self.n    # the non-monotone interval
         self.losses.append(val_loss)
 
@@ -70,21 +78,23 @@ class NT_ASGD():
         if not self.asgd_triggered and trigger:
             print('Switching to ASGD')
             self.asgd_triggered = True
+        
+        return self.asgd_triggered
 
-        # Return correct optimizer
-        if self.asgd_triggered:
-            optimizer = optim.ASGD(model_params, self.lr, t0=0, lambd=0, 
-                                   weight_decay=self.weight_decay)
-        else:
-            optimizer = optim.SGD(model_params, self.lr, 
-                                  weight_decay=self.weight_decay)
-        return optimizer
+#         # Return correct optimizer
+#         if self.asgd_triggered:
+#             optimizer = optim.ASGD(model_params, self.lr, t0=0, lambd=0, 
+#                                    weight_decay=self.weight_decay)
+#         else:
+#             optimizer = optim.SGD(model_params, self.lr, 
+#                                   weight_decay=self.weight_decay)
+#         return optimizer
 
 
 def plot_memory_usage(results_csv_filepath:str, output_filepath='./results/memory_plot.png'):
     """Plot memory usage per epoch to help spot memory leaks"""
     df = pd.read_csv(results_csv_filepath)
-    x = df['epoch']
+    x = df.index.values
     y = [df['memalloc_Gb'], df['memcache_Gb']]
     plt.stackplot(x, y, labels=['memalloc_Gb', 'memcache_Gb'])
     #plt.legend(loc='upper left')
@@ -93,3 +103,17 @@ def plot_memory_usage(results_csv_filepath:str, output_filepath='./results/memor
     plt.title('Updated at: ' + str(datetime.now()))
     plt.savefig(output_filepath)
     return
+
+def plot_memory_usage2(results_csv_filepath:str):
+    """Plot memory usage per epoch to help spot memory leaks"""
+    df = pd.read_csv(results_csv_filepath)
+    x = df.index.values
+    y = [df['memalloc_Gb']]
+    plt.stackplot(x, y, labels=['memcache_Gb', 'memalloc_Gb'])
+    #plt.legend(loc='upper left')
+    plt.xlabel('epoch')
+    plt.ylabel('Gb')
+    plt.title('Updated at: ' + str(datetime.now()))
+    plt.show()
+    return
+

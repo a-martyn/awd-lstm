@@ -1,12 +1,20 @@
 import time
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 
 import torch as th
 import torch.nn as nn
+import gc
 
 from model.data_loader import get_batch
-from utils import batch_metrics
+from utils import batch_metrics2, plot_memory_usage
+
+import sys
+import warnings
+if not sys.warnoptions:
+    warnings.simplefilter("ignore")
+
 
 def repackage_hidden(h):
     """Wraps hidden states in new Tensors, to detach them from their history"""
@@ -16,10 +24,11 @@ def repackage_hidden(h):
         return tuple(repackage_hidden(v) for v in h)
 
 
-def train(model, data, criterion, optimizer, ntokens:int, batch_size:int, 
-          lr:float, timesteps:int, clip, device, alpha, beta):
     
+def train(model, data, criterion, optimizer, ntokens:int, batch_size:int, 
+          lr:float, timesteps:int, clip, device, alpha, beta, results_df):
     hiddens = model.init_hiddens(batch_size)
+    model.train()
     #hidden = (h.to(device) for h in hidden)
 
     # TODO: Should this now be a while loop to account for variable
@@ -31,9 +40,8 @@ def train(model, data, criterion, optimizer, ntokens:int, batch_size:int,
         # learning rate scaling based on seq_length
         # "necessary as sampling arbitrary sequence lengths with a fixed
         # learning rate favours short sequences over longer ones"
-        lr2 = optimizer.param_groups[0]['lr'] 
-        optimizer.param_groups[0]['lr'] = lr2 * seq_len / timesteps
-        model.train()
+#         lr2 = optimizer.param_groups[0]['lr'] 
+#         optimizer.param_groups[0]['lr'] = lr2 * seq_len / timesteps
 
         # For each batch, detach hidden state from state created in previous
         # batches. Else, the model would attempt backpropagation through the 
@@ -60,7 +68,31 @@ def train(model, data, criterion, optimizer, ntokens:int, batch_size:int,
         nn.utils.clip_grad_norm_(model.parameters(), clip)
         optimizer.step()
         
-    return model.parameters()
+        metrics = batch_metrics2(device)
+        results_df = results_df.append(metrics, ignore_index=True)
+        results_df.to_csv('./results/batch_metrics.csv')
+        #plot_memory_usage('./results/batch_metrics.csv', output_filepath='./results/batch_memory.png')
+        
+        elements = 0
+        for obj in gc.get_objects():
+            try:
+                if th.is_tensor(obj) or (hasattr(obj, 'data') and th.is_tensor(obj.data)):
+                    m = 1
+                    for s in obj.size():
+                        m = m*s
+                    elements += m
+                        
+            except:
+                pass
+        print(elements)
+        
+        if batch > 2:
+            break
+        
+        del loss
+        
+    del hiddens
+    return results_df
 
 
 

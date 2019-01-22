@@ -67,7 +67,6 @@ beta = 1        # beta slowness regularization applied on RNN activiation (zero 
 model = net.AWD_LSTM(ntokens, emsize, nhid, dropout=dropout, device=device).to(device)
 # TODO: Check loss matches paper
 criterion = nn.CrossEntropyLoss()
-params = model.parameters()
 nt_asgd = NT_ASGD(lr, weight_decay, non_monotone)
 
 # TRAIN MODEL
@@ -81,30 +80,39 @@ val_loss = 100000000000000000000
 cols = list(epoch_metrics(0, 0, 0, 0, device).keys())
 results_df = pd.DataFrame(columns=cols).set_index('epoch')
 
+cols = ['batch', 'memalloc_Gb', 'memcache_Gb', 'max_memalloc_Gb', 'max_memcache_Gb']
+batch_mem_df = pd.DataFrame(columns=cols).set_index('batch')
+
 for epoch in range(1, epochs+1):
     start_time = time.time()
-    optimizer = nt_asgd.get_optimizer(val_loss, params)
-    model_params = train(model, train_data, criterion, optimizer, ntokens, 
-                         batch_size, lr, timesteps, clip, device, alpha, beta)
-    params = list(model_params)
+    asgd_triggered = nt_asgd.get_optimizer(val_loss)
+    if asgd_triggered:
+        optimizer = optim.ASGD(model.parameters(), lr, t0=0, lambd=0, weight_decay=weight_decay)
+    else:
+        optimizer = optim.SGD(model.parameters(), lr, weight_decay=weight_decay)    
+
+    batch_mem_df = train(model, train_data, criterion, optimizer, ntokens, 
+                         batch_size, lr, timesteps, clip, device, alpha, beta, batch_mem_df)
+    #params = list(model_params)
+    
     
     # Record evaluation metrics
     # To save time just evaluate train_loss on first 3688 observations
     # this might be improved by random sampling i guess
-    train_loss = evaluate(model, train_data[:3688], criterion, ntokens, batch_size, timesteps, device)
-    val_loss   = evaluate(model, val_data, criterion, ntokens, batch_size, timesteps, device)
-    metrics    = epoch_metrics(epoch, start_time, train_loss, val_loss, device)
-    results_df.loc[epoch] = list(metrics.values())[1:]
-    results_df.to_csv(RESULTS_PATH)
-    print(stringify(metrics))
+#     train_loss = evaluate(model, train_data[:3688], criterion, ntokens, batch_size, timesteps, device)
+#     val_loss   = evaluate(model, val_data, criterion, ntokens, batch_size, timesteps, device)
+#     metrics    = epoch_metrics(epoch, start_time, float(train_loss), float(val_loss), device)
+#     results_df.loc[epoch] = list(metrics.values())[1:]
+#     results_df.to_csv(RESULTS_PATH)
+#     print(stringify(metrics))
 
     # Save best model
-    if val_loss < best_loss:
-        print('Saving model')
-        th.save(model.state_dict(), MODEL_PATH)
-        best_loss = val_loss
+#     if val_loss < best_loss:
+#         print('Saving model')
+#         th.save(model.state_dict(), MODEL_PATH)
+#         best_loss = float(val_loss)
 
-    plot_memory_usage(RESULTS_PATH)
+#     plot_memory_usage(RESULTS_PATH)
 
         
 
