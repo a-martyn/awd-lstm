@@ -6,6 +6,7 @@ import torch.optim as optim
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from datetime import datetime
 
 
 def epoch_metrics(epoch, start_time, train_loss, val_loss, device):
@@ -79,3 +80,16 @@ class NT_ASGD():
                                   weight_decay=self.weight_decay)
         return optimizer
 
+
+def plot_memory_usage(results_csv_filepath:str, output_filepath='./results/memory_plot.png'):
+    """Plot memory usage per epoch to help spot memory leaks"""
+    df = pd.read_csv(results_csv_filepath)
+    x = df['epoch']
+    y = [df['memalloc_Gb'], df['memcache_Gb']]
+    plt.stackplot(x, y, labels=['memalloc_Gb', 'memcache_Gb'])
+    plt.legend(loc='upper left')
+    plt.xlabel('epoch')
+    plt.ylabel('Gb')
+    plt.title('Updated at: ' + str(datetime.now()))
+    plt.savefig(output_filepath)
+    return

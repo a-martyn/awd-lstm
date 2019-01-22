@@ -9,7 +9,7 @@ import torch.optim as optim
 import model.net as net
 from model.data_loader import Dictionary, tokenise, batch
 from train import train, evaluate
-from utils import epoch_metrics, stringify, NT_ASGD
+from utils import epoch_metrics, stringify, NT_ASGD, plot_memory_usage
 
 from pprint import pprint
 
@@ -103,6 +103,8 @@ for epoch in range(1, epochs+1):
         print('Saving model')
         th.save(model.state_dict(), MODEL_PATH)
         best_loss = val_loss
+
+    plot_memory_usage(RESULTS_PATH)
 
         
 
