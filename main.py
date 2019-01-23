@@ -99,18 +99,18 @@ for epoch in range(1, epochs+1):
     # Record evaluation metrics
     # To save time just evaluate train_loss on first 3688 observations
     # this might be improved by random sampling i guess
-#     train_loss = evaluate(model, train_data[:3688], criterion, ntokens, batch_size, timesteps, device)
-#     val_loss   = evaluate(model, val_data, criterion, ntokens, batch_size, timesteps, device)
-#     metrics    = epoch_metrics(epoch, start_time, float(train_loss), float(val_loss), device)
-#     results_df.loc[epoch] = list(metrics.values())[1:]
-#     results_df.to_csv(RESULTS_PATH)
-#     print(stringify(metrics))
+    train_loss = evaluate(model, train_data[:3688], criterion, ntokens, batch_size, timesteps, device)
+    val_loss   = evaluate(model, val_data, criterion, ntokens, batch_size, timesteps, device)
+    metrics    = epoch_metrics(epoch, start_time, float(train_loss), float(val_loss), device)
+    results_df.loc[epoch] = list(metrics.values())[1:]
+    results_df.to_csv(RESULTS_PATH)
+    print(stringify(metrics))
 
     # Save best model
-#     if val_loss < best_loss:
-#         print('Saving model')
-#         th.save(model.state_dict(), MODEL_PATH)
-#         best_loss = float(val_loss)
+    if val_loss < best_loss:
+        print('Saving model')
+        th.save(model.state_dict(), MODEL_PATH)
+        best_loss = float(val_loss)
 
 #     plot_memory_usage(RESULTS_PATH)
 

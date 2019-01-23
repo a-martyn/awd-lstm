@@ -84,10 +84,7 @@ def train(model, data, criterion, optimizer, ntokens:int, batch_size:int,
                         
             except:
                 pass
-        print(elements)
-        
-        if batch > 2:
-            break
+        #print(elements)
         
         del loss
         
