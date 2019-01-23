@@ -21,7 +21,7 @@ print(f'Running on: {device}')
 # --------------------------------------------------
 path = './data/penn/'
 MODEL_PATH = 'pretrained/awd_lstm.pt'
-RESULTS_PATH = 'results/awd_lstm_fixed_seq_len.csv'
+RESULTS_PATH = 'results/awd_lstm_fixed_seq_len_3.csv'
 batch_size = 20
 
 

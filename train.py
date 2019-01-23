@@ -73,18 +73,20 @@ def train(model, data, criterion, optimizer, ntokens:int, batch_size:int,
         results_df.to_csv('./results/batch_metrics.csv')
         #plot_memory_usage('./results/batch_metrics.csv', output_filepath='./results/batch_memory.png')
         
-        elements = 0
-        for obj in gc.get_objects():
-            try:
-                if th.is_tensor(obj) or (hasattr(obj, 'data') and th.is_tensor(obj.data)):
-                    m = 1
-                    for s in obj.size():
-                        m = m*s
-                    elements += m
+#         elements = 0
+#         for obj in gc.get_objects():
+#             try:
+#                 if th.is_tensor(obj) or (hasattr(obj, 'data') and th.is_tensor(obj.data)):
+#                     m = 1
+#                     for s in obj.size():
+#                         m = m*s
+#                     elements += m
                         
-            except:
-                pass
+#             except:
+#                 pass
         #print(elements)
+        if batch > 100:
+            break
         
         del loss
         

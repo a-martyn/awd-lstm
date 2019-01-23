@@ -10,7 +10,7 @@ from torch import Tensor as T
 Adapted from: https://github.com/pytorch/benchmark/blob/master/rnns/benchmarks/lstm_variants/lstm.py
 """
 
-class VariationalDropout(nn.Module):
+class VariationalDropout():
     """ An adaption of torch.nn.functional.dropout that applies 
     the same dropout mask each time it is called.
     Samples a binary dropout mask only once upon instantiatin and then 
@@ -23,19 +23,19 @@ class VariationalDropout(nn.Module):
     There code appears to sample a new mask on each call.
     https://github.com/salesforce/awd-lstm-lm/blob/master/locked_dropout.py
     """
-    def __init__(self, p=0.5):
-        super(VariationalDropout, self).__init__()
-        self.p = p
+    def __init__(self):
+        super().__init__()
+        
 
-    def forward(self, x, timestep):
+    def apply(self, x, timestep, training, p=0.5):
         # Don't apply dropout if not training
-        if not self.training:
+        if not training:
             return x
 
         # Sample a new mask on first timestep only
         if timestep == 0:
             ones = x.new_ones(x.size(), requires_grad=False)
-            self.mask = F.dropout(ones, p=self.p)
+            self.mask = F.dropout(ones, p=p)
         return x * self.mask
 
 
@@ -117,34 +117,18 @@ class AWD_LSTM(nn.Module):
         self.embedding = nn.Embedding(ntokens, embedding_size)
         self.layer0 = LSTMCell(embedding_size, hidden_size, bias=bias)
         self.layer1 = LSTMCell(hidden_size, hidden_size, bias=bias)
-        self.layer2 = LSTMCell(hidden_size, embedding_size, bias=bias)
-        self.decoder = nn.Linear(embedding_size, ntokens)
+        self.layer2 = LSTMCell(hidden_size, hidden_size, bias=bias)
+        self.decoder = nn.Linear(hidden_size, ntokens)
+
+        self.varidrop_inp = VariationalDropout()
+        self.varidrop_h = VariationalDropout()
+        self.varidrop_out = VariationalDropout() # cause of memory leak
 
         self.nlayers = 3
         self.hidden_size = hidden_size
-        self.embedding_size = embedding_size
+        self.dropout = dropout
+        self.dropoute = 0.1
         self.device = device
-
-        # Store activations for AR and TAR regularisation
-        #TAR
-#         self.output = None
-#         self.output_nodrop = None
-
-        # Dropout
-        # TODO: expose dropout settings to api
-        # QUESTION: How did authors arrive at these dropout parameters?
-        self.dropout_wts = 0.5
-        self.dropout_emb = 0.1
-        self.dropout_inp = 0.4
-        self.dropout_hid = 0.25
-        self.varidrop_inp = VariationalDropout(p=self.dropout_inp)
-        self.varidrop_hid = VariationalDropout(p=self.dropout_hid)
-        self.varidrop_out = VariationalDropout(p=self.dropout_hid)
-
-        # Weight tying
-        # https://arxiv.org/abs/1608.05859
-        # https://arxiv.org/abs/1611.01462
-        #self.decoder.weight = self.embedding.weight
 
 
     def init_hiddens(self, batch_size):
@@ -230,13 +214,13 @@ class AWD_LSTM(nn.Module):
     def forward(self, x, hiddens):
         # Translate input tokens to embedding vectors
         # with dropout
-        x = self.embedding_dropout(self.embedding, x, p=self.dropout_emb)
+        x = self.embedding_dropout(self.embedding, x, p=self.dropoute)
 
         # LSTM
         # --------------
         # Apply DropConnect to hidden-to-hidden weights 
         # once for each forward pass
-        self.weight_dropout(p=self.dropout_wts)
+        self.weight_dropout(p=self.dropout)
 
 
         # At each timestep t, forward propagate down through layers
@@ -255,13 +239,13 @@ class AWD_LSTM(nn.Module):
             # .clone() is needed to avoid break in computation graph see:
             # https://discuss.pytorch.org/t/encounter-the-runtimeerror-one-of-the-variables-needed-for-gradient-computation-has-been-modified-by-an-inplace-operation/836
             zt_l0 = x[t,:,:].clone()
-            zt_l0 = self.varidrop_inp(zt_l0, t)
+            #zt_l0 = self.varidrop_inp(zt_l0, t)
             zt_l1, (h[0,:,:], c[0,:,:]) = self.layer0(zt_l0, (h[0,:,:].clone(), c[0,:,:].clone()))
-            zt_l1 = self.varidrop_hid(zt_l1, t)
+            zt_l1 = self.varidrop_h.apply(zt_l1, t, self.training, p=0.25)
             zt_l2, (h[1,:,:], c[1,:,:]) = self.layer1(zt_l1, (h[1,:,:].clone(), c[1,:,:].clone()))
-            zt_l2 = self.varidrop_hid(zt_l2, t)
+            zt_l2 = self.varidrop_h.apply(zt_l2, t, self.training, p=0.25)
             zt_l3, (h[2,:,:], c[2,:,:]) = self.layer2(zt_l2, (h[2,:,:].clone(), c[2,:,:].clone()))
-            zt_l3 = self.varidrop_out(zt_l3, t)
+            zt_l3 = self.varidrop_h.apply(zt_l3, t, self.training, p=0.25)
             # Record output from final layer at this timestep
             output = th.cat((output, zt_l3.unsqueeze(0)))
 
