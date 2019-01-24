@@ -4,6 +4,8 @@ import torch as th
 import torch.tensor as T
 import numpy as np
 
+from pprint import pprint
+
 # Local
 import data_loader as dl
 
@@ -100,20 +102,32 @@ class Tests(unittest.TestCase):
 
     def test_get_batches(self):
         np.random.seed(0)
-        batch_size = 20
-        base_seq_len = 33
+        batch_size = 2
+        base_seq_len = 10
         data = th.randn(5000, batch_size) # 5000 is arbitrary
 
-        batches = dl.get_batches(data, base_seq_len)
+        batches = dl.get_batches(data, base_seq_len, vary_seq_len=True)
+        #pprint(batches)
+        
         # arbitrary tests assuming this random see
         #print(*(b.size() for b in batches))
         
         # Assert that batches are ordered by decreasing sequence length
         for i in range(len(batches)-1):
-            self.assertTrue(batches[i].size(0) >= batches[i+1].size(0))
+            self.assertTrue(batches[i][0].size(0) >= batches[i+1][0].size(0))
+        
+        # Assert that inputs / targets within a batch are of matching dimensions
+        for i in range(len(batches)):
+            self.assertTrue(batches[i][0].size() == batches[i][1].size())
+            
+        # Assert that targets offset input by one
+        for inputs, targets in batches:
+            self.assertTrue(inputs[1:].sum() == targets[:-1].sum())
+            
+        
         # assert that sequence lengths vary, a crude test here is to compare
         # first and second from last batch
-        self.assertTrue(batches[0].size(0) > batches[-2].size(0))
+        self.assertTrue(batches[0][0].size(0) > batches[-2][0].size(0))
 
 suite = unittest.TestLoader().loadTestsFromTestCase(Tests)
 unittest.TextTestRunner(verbosity=2).run(suite)

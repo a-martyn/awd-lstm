@@ -81,15 +81,6 @@ class NT_ASGD():
         
         return self.asgd_triggered
 
-#         # Return correct optimizer
-#         if self.asgd_triggered:
-#             optimizer = optim.ASGD(model_params, self.lr, t0=0, lambd=0, 
-#                                    weight_decay=self.weight_decay)
-#         else:
-#             optimizer = optim.SGD(model_params, self.lr, 
-#                                   weight_decay=self.weight_decay)
-#         return optimizer
-
 
 def plot_memory_usage(results_csv_filepath:str, output_filepath='./results/memory_plot.png'):
     """Plot memory usage per epoch to help spot memory leaks"""

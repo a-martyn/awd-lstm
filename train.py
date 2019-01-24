@@ -7,7 +7,7 @@ import torch as th
 import torch.nn as nn
 import gc
 
-from model.data_loader import get_batch
+from model.data_loader import get_batches, get_batch
 from utils import batch_metrics2, plot_memory_usage
 
 import sys
@@ -16,33 +16,33 @@ if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
 
-def repackage_hidden(h):
-    """Wraps hidden states in new Tensors, to detach them from their history"""
-    if isinstance(h, th.Tensor):
-        return h.detach()
-    else:
-        return tuple(repackage_hidden(v) for v in h)
+def repackage_hidden(hiddens):
+    h_detached = [h.detach() for h in hiddens[0]]
+    c_detached = [c.detach() for c in hiddens[1]]
+    return (h_detached, c_detached)
 
 
-    
 def train(model, data, criterion, optimizer, ntokens:int, batch_size:int, 
           lr:float, timesteps:int, clip, device, alpha, beta):
-    hiddens = model.init_hiddens(batch_size)
-    model.train()
-    #hidden = (h.to(device) for h in hidden)
     
-    # TODO: Should this now be a while loop to account for variable
-    # sequence length?
-    for batch, i in tqdm(enumerate(range(0, data.size(0)-1, timesteps))):
+    hiddens = model.init_hiddens(batch_size) 
+    # Get base learning rate for scaling
+    lr_base = optimizer.param_groups[0]['lr'] 
+    
+    batches = get_batches(data, timesteps, vary_seq_len=True)
+    for inputs, targets in tqdm(batches):
+        seq_len = len(inputs)
         start_time = time.time()
-        # Get batches for this epoch with variable sequence length
-        inputs, targets, seq_len = get_batch(data, i, timesteps, jitter=False)
-
+        
         # learning rate scaling based on seq_length
         # "necessary as sampling arbitrary sequence lengths with a fixed
         # learning rate favours short sequences over longer ones"
-#         lr2 = optimizer.param_groups[0]['lr'] 
-#         optimizer.param_groups[0]['lr'] = lr2 * seq_len / timesteps
+        # I've adapted this from the authors version which can result in 
+        # inordinately large or small learning rate if seq_len is biased
+        # above or below timesteps for many iterations
+        lr_scaled = lr_base * seq_len / timesteps
+        optimizer.param_groups[0]['lr'] = lr_scaled
+        model.train()
 
         # For each batch, detach hidden state from state created in previous
         # batches. Else, the model would attempt backpropagation through the 
@@ -57,7 +57,7 @@ def train(model, data, criterion, optimizer, ntokens:int, batch_size:int,
         # with Activation Regularisation and
         # Temporal Activation Regularisation
         loss = criterion(output.view(-1, ntokens), targets.view(-1))
-        ar  = model.activation_reg(alpha)
+        ar = model.activation_reg(alpha)
         tar = model.temporal_activation_reg(beta)
         loss = loss + ar + tar
 
@@ -84,7 +84,6 @@ def evaluate(model, data, criterion, ntokens, batch_size, timesteps, device):
     model.eval()
     total_loss = 0
     hiddens = model.init_hiddens(batch_size)
-    #hidden = (h.to(device) for h in hidden)
     with th.no_grad():
         for i in range(0, data.size(0) - 1, timesteps):
             inputs, targets, _ = get_batch(data, i, timesteps)

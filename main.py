@@ -13,6 +13,12 @@ from utils import epoch_metrics, stringify, NT_ASGD, plot_memory_usage
 
 from pprint import pprint
 
+# Seed
+# Set the random seed manually for reproducibility.
+seed = 141
+np.random.seed(seed)
+th.manual_seed(seed)
+
 # Choose device
 device = th.device('cuda:0' if th.cuda.is_available() else 'cpu')
 print(f'Running on: {device}')
@@ -54,17 +60,21 @@ test_data = test_data.to(device)
 
 epochs = 500
 lr = 0.4
-timesteps = 35
+timesteps = 35  # authors use 70
 emsize = 400
 nhid = 1550
 clip = 0.25
 weight_decay = 1.2e-6
 non_monotone = 5
-dropout = 0.5   # authours use --dropouti 0.4 --dropouth 0.25
 alpha = 2       # alpha L2 regularization on RNN activation (zero means no regularisation)
 beta = 1        # beta slowness regularization applied on RNN activiation (zero means no regularisation)
+dropout_wts = 0.5
+dropout_emb = 0.1
+dropout_inp = 0.4
+dropout_hid = 0.25
 
-model = net.AWD_LSTM(ntokens, emsize, nhid, dropout=dropout, device=device).to(device)
+model = net.AWD_LSTM(ntokens, emsize, nhid, device=device, dropout_wts=0.5, 
+                     dropout_emb=0.1, dropout_inp=0.4, dropout_hid=0.25).to(device)
 # TODO: Check loss matches paper
 criterion = nn.CrossEntropyLoss()
 nt_asgd = NT_ASGD(lr, weight_decay, non_monotone)
@@ -77,7 +87,7 @@ nt_asgd = NT_ASGD(lr, weight_decay, non_monotone)
 best_loss = 100000000000000000000
 val_loss = 100000000000000000000 
 
-cols = list(epoch_metrics(0, 0, 0, 0, device).keys())
+cols = list(epoch_metrics(0, 0, 0, 0, device).keys()) + ['asgd_triggered']
 results_df = pd.DataFrame(columns=cols).set_index('epoch')
 
 for epoch in range(1, epochs+1):
@@ -93,10 +103,10 @@ for epoch in range(1, epochs+1):
     
     # Record evaluation metrics
     # To save time just evaluate train_loss on first 3688 observations
-    # this might be improved by random sampling i guess
     train_loss = evaluate(model, train_data[:3688], criterion, ntokens, batch_size, timesteps, device)
     val_loss   = evaluate(model, val_data, criterion, ntokens, batch_size, timesteps, device)
     metrics    = epoch_metrics(epoch, start_time, float(train_loss), float(val_loss), device)
+    metrics['asgd_triggered'] = asgd_triggered
     results_df.loc[epoch] = list(metrics.values())[1:]
     results_df.to_csv(RESULTS_PATH)
     print(stringify(metrics))

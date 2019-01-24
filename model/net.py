@@ -4,9 +4,8 @@ import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor as T
-
-from pprint import pprint
 import warnings
+
 
 class VariationalDropout():
     """ An adaption of torch.nn.functional.dropout that applies 
@@ -71,7 +70,6 @@ class WeightDropout(nn.Module):
             return self.module.forward(*args)
 
     def reset(self):
-        print('RESET')
         raw_w = getattr(self, 'weight_raw')
         self.module.h2h._parameters[layer] = F.dropout(raw_w, p=self.weight_p, training=False)
         if hasattr(self.module, 'reset'): self.module.reset()
@@ -148,21 +146,23 @@ class AWD_LSTM(nn.Module):
     https://arxiv.org/abs/1708.02182
     """
 
-    def __init__(self, ntokens, embedding_size, hidden_size, bias=True, dropout=0.5, device='cpu'):
+    def __init__(self, ntokens, embedding_size, hidden_size, bias=True, device='cpu',
+                 dropout_wts=0.5, dropout_emb=0.1, dropout_inp=0.4, dropout_hid=0.25):
         super(AWD_LSTM, self).__init__()
+        
+        self.dropout_emb = dropout_emb
+        self.dropout_inp = dropout_inp
+        self.dropout_hid = dropout_hid
+        
         self.embedding = nn.Embedding(ntokens, embedding_size)
         self.layer0 = LSTMCell(embedding_size, hidden_size, bias=bias)
-        self.layer0 = WeightDropout(self.layer0, 0.5)
+        self.layer0 = WeightDropout(self.layer0, dropout_wts)
         self.layer1 = LSTMCell(hidden_size, hidden_size, bias=bias)
-        self.layer1 = WeightDropout(self.layer1, 0.5)
-        self.layer2 = LSTMCell(hidden_size, hidden_size, bias=bias)
-        self.layer2 = WeightDropout(self.layer2, 0.5)
-        self.decoder = nn.Linear(hidden_size, ntokens)
+        self.layer1 = WeightDropout(self.layer1, dropout_wts)
+        self.layer2 = LSTMCell(hidden_size, embedding_size, bias=bias)
+        self.layer2 = WeightDropout(self.layer2, dropout_wts)
+        self.decoder = nn.Linear(embedding_size, ntokens)
         
-#         self.dropout_wts = 0.5
-#         self.dropout_emb = 0.1
-#         self.dropout_inp = 0.4
-#         self.dropout_hid = 0.25
         self.varidrop_inp = VariationalDropout()
         self.varidrop_hid = VariationalDropout()
         self.varidrop_out = VariationalDropout()
@@ -170,16 +170,32 @@ class AWD_LSTM(nn.Module):
         self.nlayers = 3
         self.hidden_size = hidden_size
         self.device = device
+        self.embedding_size = embedding_size
         
         self.output = None
         self.output_nodrop = None
+        
+        # Weight tying
+        # https://arxiv.org/abs/1608.05859
+        # https://arxiv.org/abs/1611.01462
+        self.decoder.weight = self.embedding.weight
 
 
     def init_hiddens(self, batch_size):
+        """
+        Create initial tensors as input to timestep 0
+        for each of the layers.
+        """
         weight = next(self.parameters())
-        return (weight.new_zeros(self.nlayers, batch_size, self.hidden_size),
-                weight.new_zeros(self.nlayers, batch_size, self.hidden_size))
-
+        # hidden activations
+        h = [weight.new_zeros(batch_size, self.hidden_size).to(self.device),     # layer0
+             weight.new_zeros(batch_size, self.hidden_size).to(self.device),     # layer1
+             weight.new_zeros(batch_size, self.embedding_size).to(self.device)]  # layer2
+        # cells state
+        c = [weight.new_zeros(batch_size, self.hidden_size).to(self.device),     # layer0 
+             weight.new_zeros(batch_size, self.hidden_size).to(self.device),     # layer1
+             weight.new_zeros(batch_size, self.embedding_size).to(self.device)]  # layer2
+        return (h, c)
     
     def embedding_dropout(self, embed, words, p=0.1):
         """
@@ -205,23 +221,29 @@ class AWD_LSTM(nn.Module):
     def forward(self, x, hiddens):
         # Translate input tokens to embedding vectors
         # with dropout
-        x = self.embedding_dropout(self.embedding, x, p=0.1)
+        x = self.embedding_dropout(self.embedding, x, p=self.dropout_emb)
         
         h, c = hiddens
         output = T().to(self.device)
         output_nodrop = T().to(self.device)
-        for t in range(x.size(0)): 
-            zt_l0 = x[t,:,:].clone()
-            zt_l0 = self.varidrop_inp.apply(zt_l0, t, self.training, p=0.4)
-            zt_l1, (h[0,:,:], c[0,:,:]) = self.layer0(zt_l0, (h[0,:,:].clone(), c[0,:,:].clone()))
-            zt_l1 = self.varidrop_hid.apply(zt_l1, t, self.training, p=0.25)
-            zt_l2, (h[1,:,:], c[1,:,:]) = self.layer1(zt_l1, (h[1,:,:].clone(), c[1,:,:].clone()))
-            zt_l2 = self.varidrop_hid.apply(zt_l2, t, self.training, p=0.25)
-            zt_l3, (h[2,:,:], c[2,:,:]) = self.layer2(zt_l2, (h[2,:,:].clone(), c[2,:,:].clone()))
-            output_nodrop = th.cat((output_nodrop, zt_l3.unsqueeze(0)))
-            zt_l3 = self.varidrop_out.apply(zt_l3, t, self.training, p=0.25)
-            # Record output from final layer at this timestep
-            output = th.cat((output, zt_l3.unsqueeze(0)))
+        for t in range(x.size(0)):          
+            # Propagate through layers for each timestep
+            # Note: using 3 layers here as per paper
+            inp = x[t,:,:]
+            inp_d = self.varidrop_inp.apply(inp, t, self.training, p=self.dropout_inp)
+            z0, (h0, c0) = self.layer0(inp_d, (h[0], c[0]))
+            z0_d = self.varidrop_hid.apply(z0, t, self.training, p=self.dropout_hid) 
+            z1, (h1, c1) = self.layer1(z0_d, (h[1], c[1]))
+            z1_d = self.varidrop_hid.apply(z1, t, self.training, p=self.dropout_hid) 
+            z2, (h2, c2) = self.layer2(z1_d, (h[2], c[2]))
+            # Note: Can't use the same variational dropout mask here because
+            # the final layer outputs a different sized matrix.
+            z2_d = self.varidrop_out.apply(z2, t, self.training, p=self.dropout_hid)
+            h = [h0, h1, h2]
+            c = [c0, c1, c2]
+            output = th.cat((output, z2_d.unsqueeze(0)))
+            #TAR
+            output_nodrop = th.cat((output_nodrop, z2.unsqueeze(0)))
             
         # Store outputs for AR and TAR regularisation
         # Detach because we don't want subequent calcs to affect

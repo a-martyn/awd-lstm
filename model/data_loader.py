@@ -113,8 +113,9 @@ def gen_sequence_lengths(data, base_seq_len):
     while total_seq_len < total_data_len:
         # occasionally halve the base sequence length
         mu = base_seq_len if np.random.random() < 0.95 else base_seq_len/2
-        # prevent excessively small or negative lengths
+        # prevent excessively small, negative or large lengths
         seq_len = max(5, int(np.random.normal(mu, 5)))
+        seq_len = min(base_seq_len+5, seq_len)
         # add seqence lengths until total data length is exceeded
         seq_lens.append(seq_len)
         total_seq_len += seq_len
@@ -123,20 +124,29 @@ def gen_sequence_lengths(data, base_seq_len):
     # add final sequence that fits perfectly if greater than 5
     remainder = total_data_len - sum(seq_lens)
     if remainder > 5:
-        seq_lens.append(remainder)
+        print(remainder)
+        seq_lens.append(remainder-1)
     
     return seq_lens
 
 
-def get_batches(data, base_seq_len):
+def get_batches(data, base_seq_len, vary_seq_len=False):
     # Get seq lens
-    seq_lens = gen_sequence_lengths(data, base_seq_len)
+    if vary_seq_len:
+        seq_lens = gen_sequence_lengths(data, base_seq_len)
+    else:
+        seq_lens = [base_seq_len for _ in range(data.size(0)//base_seq_len)]
     # slice data into batches by seq_lens
     batches = []
     for i in range(len(seq_lens)):
-        seq_start = sum(seq_lens[:i-1])
+        seq_start = sum(seq_lens[:i])
         seq_end = seq_start + seq_lens[i]
-        batches.append(data[seq_start: seq_end])
+        x = data[seq_start: seq_end]
+        y = data[seq_start+1: seq_end+1]
+        if len(x) != len(y):
+            print(f'{i} / {len(seq_lens)}')
+            print(seq_start, seq_end)
+        batches.append((x, y))
 
     # order batches by descending sequence length
     # this step is important to avoid excessive memory caching by pytorch
@@ -145,7 +155,9 @@ def get_batches(data, base_seq_len):
     # input than its first. See discussion here:
     # https://discuss.pytorch.org/t/how-to-debug-causes-of-gpu-memory-leaks/6741/11
     # https://pytorch.org/docs/stable/nn.html#torch.nn.utils.rnn.pack_padded_sequence
-    batches.sort(key=len, reverse=True)
+    # NOTE: This means that within an epoch the model is trained on batches
+    # of monotonically decreasing seq_len. Does this effect the models training?
+    batches.sort(key=(lambda x: len(x[0])), reverse=True)
 
     return batches
 
