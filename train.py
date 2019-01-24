@@ -26,14 +26,15 @@ def repackage_hidden(h):
 
     
 def train(model, data, criterion, optimizer, ntokens:int, batch_size:int, 
-          lr:float, timesteps:int, clip, device, alpha, beta, results_df):
+          lr:float, timesteps:int, clip, device, alpha, beta):
     hiddens = model.init_hiddens(batch_size)
     model.train()
     #hidden = (h.to(device) for h in hidden)
-
+    
     # TODO: Should this now be a while loop to account for variable
     # sequence length?
     for batch, i in tqdm(enumerate(range(0, data.size(0)-1, timesteps))):
+        start_time = time.time()
         # Get batches for this epoch with variable sequence length
         inputs, targets, seq_len = get_batch(data, i, timesteps, jitter=False)
 
@@ -56,9 +57,9 @@ def train(model, data, criterion, optimizer, ntokens:int, batch_size:int,
         # with Activation Regularisation and
         # Temporal Activation Regularisation
         loss = criterion(output.view(-1, ntokens), targets.view(-1))
-        # ar  = model.activation_reg(alpha)
-        # tar = model.temporal_activation_reg(beta)
-        # loss = loss + ar + tar
+        ar  = model.activation_reg(alpha)
+        tar = model.temporal_activation_reg(beta)
+        loss = loss + ar + tar
 
         # Backpropagate
         loss.backward()
@@ -68,30 +69,13 @@ def train(model, data, criterion, optimizer, ntokens:int, batch_size:int,
         nn.utils.clip_grad_norm_(model.parameters(), clip)
         optimizer.step()
         
-        metrics = batch_metrics2(device)
-        results_df = results_df.append(metrics, ignore_index=True)
-        results_df.to_csv('./results/batch_metrics.csv')
-        #plot_memory_usage('./results/batch_metrics.csv', output_filepath='./results/batch_memory.png')
-        
-#         elements = 0
-#         for obj in gc.get_objects():
-#             try:
-#                 if th.is_tensor(obj) or (hasattr(obj, 'data') and th.is_tensor(obj.data)):
-#                     m = 1
-#                     for s in obj.size():
-#                         m = m*s
-#                     elements += m
-                        
-#             except:
-#                 pass
-        #print(elements)
-        if batch > 100:
-            break
-        
         del loss
+#         metrics = batch_metrics2(start_time, device)
+#         results_df = results_df.append(metrics, ignore_index=True)
+#         results_df.to_csv('./results/batch_metrics.csv') 
         
     del hiddens
-    return results_df
+    return
 
 
 

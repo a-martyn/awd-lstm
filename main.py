@@ -80,9 +80,6 @@ val_loss = 100000000000000000000
 cols = list(epoch_metrics(0, 0, 0, 0, device).keys())
 results_df = pd.DataFrame(columns=cols).set_index('epoch')
 
-cols = ['batch', 'memalloc_Gb', 'memcache_Gb', 'max_memalloc_Gb', 'max_memcache_Gb']
-batch_mem_df = pd.DataFrame(columns=cols).set_index('batch')
-
 for epoch in range(1, epochs+1):
     start_time = time.time()
     asgd_triggered = nt_asgd.get_optimizer(val_loss)
@@ -91,10 +88,8 @@ for epoch in range(1, epochs+1):
     else:
         optimizer = optim.SGD(model.parameters(), lr, weight_decay=weight_decay)    
 
-    batch_mem_df = train(model, train_data, criterion, optimizer, ntokens, 
-                         batch_size, lr, timesteps, clip, device, alpha, beta, batch_mem_df)
-    #params = list(model_params)
-    
+    train(model, train_data, criterion, optimizer, ntokens, 
+          batch_size, lr, timesteps, clip, device, alpha, beta)  
     
     # Record evaluation metrics
     # To save time just evaluate train_loss on first 3688 observations
@@ -110,11 +105,7 @@ for epoch in range(1, epochs+1):
     if val_loss < best_loss:
         print('Saving model')
         th.save(model.state_dict(), MODEL_PATH)
-        best_loss = float(val_loss)
-
-#     plot_memory_usage(RESULTS_PATH)
-
-        
+        best_loss = float(val_loss)     
 
 
 

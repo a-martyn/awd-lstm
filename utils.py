@@ -43,8 +43,8 @@ def batch_metrics(batch, data, timesteps, lr, elapsed, log_interval, cur_loss):
                f'| bpc {cur_loss / math.log(2):8.3f}']
     return ''.join(metrics)
 
-def batch_metrics2(device):
-    metrics = {}
+def batch_metrics2(start_time, device):
+    metrics = {'batch_time': time.time() - start_time}
     if device == th.device('cuda:0'):
         metrics['memalloc_Gb'] = th.cuda.memory_allocated(device=device) / 1e+9
         metrics['memcache_Gb'] = th.cuda.memory_cached(device=device) / 1e+9

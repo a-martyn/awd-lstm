@@ -5,27 +5,27 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor as T
 
-
-"""
-Adapted from: https://github.com/pytorch/benchmark/blob/master/rnns/benchmarks/lstm_variants/lstm.py
-"""
+from pprint import pprint
+import warnings
 
 class VariationalDropout():
     """ An adaption of torch.nn.functional.dropout that applies 
     the same dropout mask each time it is called.
+
     Samples a binary dropout mask only once upon instantiatin and then 
     allows that same dropout mask to be used repeatedly. When minibatches
     are received as input, then a different mask is used for each minibatch.
+
     Described in section 4.2 of the AWD-LSTM reference paper where they cite:
     A Theoretically Grounded Application of Dropout in Recurrent Neural Networks 
     (Gal & Ghahramani, 2016, https://arxiv.org/abs/1512.05287)
+
     TODO Note: The AWD-LSTM authors' implementation is not as described in paper.
     There code appears to sample a new mask on each call.
     https://github.com/salesforce/awd-lstm-lm/blob/master/locked_dropout.py
     """
     def __init__(self):
-        super().__init__()
-        
+        pass
 
     def apply(self, x, timestep, training, p=0.5):
         # Don't apply dropout if not training
@@ -37,6 +37,45 @@ class VariationalDropout():
             ones = x.new_ones(x.size(), requires_grad=False)
             self.mask = F.dropout(ones, p=p)
         return x * self.mask
+
+
+class WeightDropout(nn.Module):
+    """
+    A module that wraps an LSTM cell in which some weights will be replaced by 0 during training.
+    Adapted from: https://github.com/fastai/fastai/blob/master/fastai/text/models.py
+    
+    Initially I implemented this by getting the models state_dict attribute, modifying it to drop
+    weights, and then loading the modified version with load_state_dict. I had to abandon this 
+    approach after identifying it as the source of a slow memory leak.
+    """
+
+    def __init__(self, module:nn.Module, weight_p:float):
+        super().__init__()
+        self.module,self.weight_p = module, weight_p
+            
+        #Makes a copy of the weights of the selected layers.
+        w = getattr(self.module.h2h, 'weight')
+        self.register_parameter('weight_raw', nn.Parameter(w.data))
+        self.module.h2h._parameters['weight'] = F.dropout(w, p=self.weight_p, training=False)
+
+    def _setweights(self):
+        "Apply dropout to the raw weights."
+        raw_w = getattr(self, 'weight_raw')
+        self.module.h2h._parameters['weight'] = F.dropout(raw_w, p=self.weight_p, training=self.training)
+
+    def forward(self, *args):
+        self._setweights()
+        with warnings.catch_warnings():
+            #To avoid the warning that comes because the weights aren't flattened.
+            warnings.simplefilter("ignore")
+            return self.module.forward(*args)
+
+    def reset(self):
+        print('RESET')
+        raw_w = getattr(self, 'weight_raw')
+        self.module.h2h._parameters[layer] = F.dropout(raw_w, p=self.weight_p, training=False)
+        if hasattr(self.module, 'reset'): self.module.reset()
+
 
 
 class LSTMCell(nn.Module):
@@ -102,9 +141,6 @@ class LSTMCell(nn.Module):
         return h_t, (h_t, c_t)
 
 
-# How to handle batch? Is whole batch passed throug in a pass
-# or iterate through?
-
 class AWD_LSTM(nn.Module):
 
     """
@@ -116,19 +152,27 @@ class AWD_LSTM(nn.Module):
         super(AWD_LSTM, self).__init__()
         self.embedding = nn.Embedding(ntokens, embedding_size)
         self.layer0 = LSTMCell(embedding_size, hidden_size, bias=bias)
+        self.layer0 = WeightDropout(self.layer0, 0.5)
         self.layer1 = LSTMCell(hidden_size, hidden_size, bias=bias)
+        self.layer1 = WeightDropout(self.layer1, 0.5)
         self.layer2 = LSTMCell(hidden_size, hidden_size, bias=bias)
+        self.layer2 = WeightDropout(self.layer2, 0.5)
         self.decoder = nn.Linear(hidden_size, ntokens)
-
+        
+#         self.dropout_wts = 0.5
+#         self.dropout_emb = 0.1
+#         self.dropout_inp = 0.4
+#         self.dropout_hid = 0.25
         self.varidrop_inp = VariationalDropout()
-        self.varidrop_h = VariationalDropout()
-        self.varidrop_out = VariationalDropout() # cause of memory leak
+        self.varidrop_hid = VariationalDropout()
+        self.varidrop_out = VariationalDropout()
 
         self.nlayers = 3
         self.hidden_size = hidden_size
-        self.dropout = dropout
-        self.dropoute = 0.1
         self.device = device
+        
+        self.output = None
+        self.output_nodrop = None
 
 
     def init_hiddens(self, batch_size):
@@ -136,40 +180,61 @@ class AWD_LSTM(nn.Module):
         return (weight.new_zeros(self.nlayers, batch_size, self.hidden_size),
                 weight.new_zeros(self.nlayers, batch_size, self.hidden_size))
 
-    def weight_dropout(self, p=0.5):
-        """
-        Applies recurrent regularization through a DropConnect mask on the
-        hidden-to-hidden recurrent weights as described here:
-        https://cs.nyu.edu/~wanli/dropc/dropc.pdf
-        """
-        sd = self.state_dict()
-        for l in range(self.nlayers):
-            k = f'layer{l}.h2h.weight'
-            sd[k] = F.dropout(sd[k], p=p, training=self.training)  
-        self.load_state_dict(sd)
-        return
-
+    
     def embedding_dropout(self, embed, words, p=0.1):
         """
         TODO: re-write and add test
         """
         if not self.training:
-              masked_embed_weight = embed.weight
+            masked_embed_weight = embed.weight
         elif not p:
-          masked_embed_weight = embed.weight
+            masked_embed_weight = embed.weight
         else:
-          mask = embed.weight.data.new().resize_((embed.weight.size(0), 1)).bernoulli_(1 - p).expand_as(embed.weight) / (1 - p)
-          masked_embed_weight = mask * embed.weight
+            mask = embed.weight.data.new().resize_((embed.weight.size(0), 1)).bernoulli_(1 - p).expand_as(embed.weight) / (1 - p)
+            masked_embed_weight = mask * embed.weight
     
         padding_idx = embed.padding_idx
         if padding_idx is None:
             padding_idx = -1
     
         X = F.embedding(words, masked_embed_weight,
-          padding_idx, embed.max_norm, embed.norm_type,
-          embed.scale_grad_by_freq, embed.sparse
-        )
+                        padding_idx, embed.max_norm, embed.norm_type,
+                        embed.scale_grad_by_freq, embed.sparse)
         return X
+
+    def forward(self, x, hiddens):
+        # Translate input tokens to embedding vectors
+        # with dropout
+        x = self.embedding_dropout(self.embedding, x, p=0.1)
+        
+        h, c = hiddens
+        output = T().to(self.device)
+        output_nodrop = T().to(self.device)
+        for t in range(x.size(0)): 
+            zt_l0 = x[t,:,:].clone()
+            zt_l0 = self.varidrop_inp.apply(zt_l0, t, self.training, p=0.4)
+            zt_l1, (h[0,:,:], c[0,:,:]) = self.layer0(zt_l0, (h[0,:,:].clone(), c[0,:,:].clone()))
+            zt_l1 = self.varidrop_hid.apply(zt_l1, t, self.training, p=0.25)
+            zt_l2, (h[1,:,:], c[1,:,:]) = self.layer1(zt_l1, (h[1,:,:].clone(), c[1,:,:].clone()))
+            zt_l2 = self.varidrop_hid.apply(zt_l2, t, self.training, p=0.25)
+            zt_l3, (h[2,:,:], c[2,:,:]) = self.layer2(zt_l2, (h[2,:,:].clone(), c[2,:,:].clone()))
+            output_nodrop = th.cat((output_nodrop, zt_l3.unsqueeze(0)))
+            zt_l3 = self.varidrop_out.apply(zt_l3, t, self.training, p=0.25)
+            # Record output from final layer at this timestep
+            output = th.cat((output, zt_l3.unsqueeze(0)))
+            
+        # Store outputs for AR and TAR regularisation
+        # Detach because we don't want subequent calcs to affect
+        # backpropagation
+        self.output = output.detach()
+        self.output_nodrop = output_nodrop.detach()
+        
+        # Translate embedding vectors to tokens
+        reshaped = output.view(output.size(0)*output.size(1), output.size(2))
+        decoded = self.decoder(reshaped)
+        decoded = decoded.view(output.size(0), output.size(1), decoded.size(1))
+
+        return decoded, (h, c)
 
 
     def activation_reg(self, alpha):
@@ -209,53 +274,6 @@ class AWD_LSTM(nn.Module):
             L2_norms_t.append(L2_norm_mean)
         
         return beta * th.mean(T(L2_norms_t))
-
-
-    def forward(self, x, hiddens):
-        # Translate input tokens to embedding vectors
-        # with dropout
-        x = self.embedding_dropout(self.embedding, x, p=self.dropoute)
-
-        # LSTM
-        # --------------
-        # Apply DropConnect to hidden-to-hidden weights 
-        # once for each forward pass
-        self.weight_dropout(p=self.dropout)
-
-
-        # At each timestep t, forward propagate down through layers
-        # Then proceed to next timestep for all timesteps.
-        # Note: it would also be valid to go the other direction first.
-        # e.g. iterate through all timesteps in first layer before proceeding
-        # to next layer
-        # Note: we adopt pytorch assumption that first dimension of x contains
-        # so we pass batches all the way through
-
-        h, c = hiddens
-        output = T().to(self.device)
-        for t in range(x.size(0)): 
-            # Propagate through layers for each timestep
-            # Note: using 3 layers here as per paper
-            # .clone() is needed to avoid break in computation graph see:
-            # https://discuss.pytorch.org/t/encounter-the-runtimeerror-one-of-the-variables-needed-for-gradient-computation-has-been-modified-by-an-inplace-operation/836
-            zt_l0 = x[t,:,:].clone()
-            #zt_l0 = self.varidrop_inp(zt_l0, t)
-            zt_l1, (h[0,:,:], c[0,:,:]) = self.layer0(zt_l0, (h[0,:,:].clone(), c[0,:,:].clone()))
-            zt_l1 = self.varidrop_h.apply(zt_l1, t, self.training, p=0.25)
-            zt_l2, (h[1,:,:], c[1,:,:]) = self.layer1(zt_l1, (h[1,:,:].clone(), c[1,:,:].clone()))
-            zt_l2 = self.varidrop_h.apply(zt_l2, t, self.training, p=0.25)
-            zt_l3, (h[2,:,:], c[2,:,:]) = self.layer2(zt_l2, (h[2,:,:].clone(), c[2,:,:].clone()))
-            zt_l3 = self.varidrop_h.apply(zt_l3, t, self.training, p=0.25)
-            # Record output from final layer at this timestep
-            output = th.cat((output, zt_l3.unsqueeze(0)))
-
-        # Translate embedding vectors to tokens
-        reshaped = output.view(output.size(0)*output.size(1), output.size(2))
-        decoded = self.decoder(reshaped)
-        decoded = decoded.view(output.size(0), output.size(1), decoded.size(1))
-
-        return decoded, (h, c)
-
 
 
 
