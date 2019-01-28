@@ -6,6 +6,8 @@ import torch.nn.functional as F
 from torch import Tensor as T
 import warnings
 
+from pprint import pprint
+
 
 class VariationalDropout():
     """ An adaption of torch.nn.functional.dropout that applies 
@@ -75,7 +77,6 @@ class WeightDropout(nn.Module):
         if hasattr(self.module, 'reset'): self.module.reset()
 
 
-
 class LSTMCell(nn.Module):
     """
     An implementation of Hochreiter & Schmidhuber:
@@ -136,7 +137,7 @@ class LSTMCell(nn.Module):
         # Output
         h_t = th.mul(o, th.tanh(c_t))
 
-        return h_t, (h_t, c_t)
+        return h_t, c_t
 
 
 class AWD_LSTM(nn.Module):
@@ -178,7 +179,7 @@ class AWD_LSTM(nn.Module):
         # Weight tying
         # https://arxiv.org/abs/1608.05859
         # https://arxiv.org/abs/1611.01462
-        self.decoder.weight = self.embedding.weight
+        #self.decoder.weight = self.embedding.weight
 
 
     def init_hiddens(self, batch_size):
@@ -229,21 +230,21 @@ class AWD_LSTM(nn.Module):
         for t in range(x.size(0)):          
             # Propagate through layers for each timestep
             # Note: using 3 layers here as per paper
-            inp = x[t,:,:]
-            inp_d = self.varidrop_inp.apply(inp, t, self.training, p=self.dropout_inp)
-            z0, (h0, c0) = self.layer0(inp_d, (h[0], c[0]))
-            z0_d = self.varidrop_hid.apply(z0, t, self.training, p=self.dropout_hid) 
-            z1, (h1, c1) = self.layer1(z0_d, (h[1], c[1]))
-            z1_d = self.varidrop_hid.apply(z1, t, self.training, p=self.dropout_hid) 
-            z2, (h2, c2) = self.layer2(z1_d, (h[2], c[2]))
+            inp    = x[t,:,:]
+            inp_d  = self.varidrop_inp.apply(inp, t, self.training, p=self.dropout_inp)
+            h0, c0 = self.layer0(inp_d, (h[0], c[0]))
+            z0     = self.varidrop_hid.apply(h0, t, self.training, p=self.dropout_hid) 
+            h1, c1 = self.layer1(z0, (h[1], c[1]))
+            z1     = self.varidrop_hid.apply(h1, t, self.training, p=self.dropout_hid) 
+            h2, c2 = self.layer2(z1, (h[2], c[2]))
             # Note: Can't use the same variational dropout mask here because
             # the final layer outputs a different sized matrix.
-            z2_d = self.varidrop_out.apply(z2, t, self.training, p=self.dropout_hid)
+            z2 = self.varidrop_out.apply(h2, t, self.training, p=self.dropout_hid)
             h = [h0, h1, h2]
             c = [c0, c1, c2]
-            output = th.cat((output, z2_d.unsqueeze(0)))
+            output = th.cat((output, z2.unsqueeze(0)))
             #TAR
-            output_nodrop = th.cat((output_nodrop, z2.unsqueeze(0)))
+            output_nodrop = th.cat((output_nodrop, h2.unsqueeze(0)))
             
         # Store outputs for AR and TAR regularisation
         # Detach because we don't want subequent calcs to affect
