@@ -26,8 +26,8 @@ print(f'Running on: {device}')
 # Globals
 # --------------------------------------------------
 path = './data/penn/'
-MODEL_PATH = 'pretrained/awd_lstm.pt'
-RESULTS_PATH = 'results/awd_lstm_fixed_seq_len_5.csv'
+MODEL_PATH = 'pretrained/scratch.pt'
+RESULTS_PATH = 'results/scratch.csv'
 batch_size = 20
 
 

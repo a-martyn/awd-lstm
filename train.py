@@ -5,7 +5,6 @@ from tqdm import tqdm
 
 import torch as th
 import torch.nn as nn
-import gc
 
 from model.data_loader import get_batches, get_batch
 from utils import batch_metrics2, plot_memory_usage

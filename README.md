@@ -1,5 +1,10 @@
 # awd-lstm
 
+- how to run
+- performance
+- memory leak
+
+
 ## Implementation features
 
 - 2. [x] Weight-dropped LSTM: A wrapper around a vanilla LSTM network that applies dropout to hidden-to-hidden recurrent weights
@@ -19,13 +24,9 @@
 - 4.6 [x] Activation Regularization (AR) and Temporal Activation Regularization (TAR)
 
 
-- Follow stanford's recommended project structure: 
-  - https://cs230-stanford.github.io/pytorch-getting-started.html
-  - https://github.com/cs230-stanford/cs230-code-examples/tree/master/pytorch/nlp
 
 
 Irregularities in awd-lstm salesforce repo:
-- decoder doesn't appear to be implemented in forward pass.
 - AR and TAR regularisation don't implement square root
 
 Ideas
