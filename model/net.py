@@ -20,10 +20,6 @@ class VariationalDropout():
     Described in section 4.2 of the AWD-LSTM reference paper where they cite:
     A Theoretically Grounded Application of Dropout in Recurrent Neural Networks 
     (Gal & Ghahramani, 2016, https://arxiv.org/abs/1512.05287)
-
-    TODO Note: The AWD-LSTM authors' implementation is not as described in paper.
-    There code appears to sample a new mask on each call.
-    https://github.com/salesforce/awd-lstm-lm/blob/master/locked_dropout.py
     """
     def __init__(self):
         pass
@@ -83,16 +79,7 @@ class LSTMCell(nn.Module):
     'Long-Short Term Memory' Cell
     http://www.bioinf.jku.at/publications/older/2604.pdf
     a.k.a the Vanilla LSTM Cell
-    .. math::
-        \begin{array}{ll}
-        i = \sigma(W_{ii} x + b_{ii} + W_{hi} h + b_{hi}) \\
-        f = \sigma(W_{if} x + b_{if} + W_{hf} h + b_{hf}) \\
-        g = \tanh(W_{ig} x + b_{ig} + W_{hg} h + b_{hg}) \\
-        o = \sigma(W_{io} x + b_{io} + W_{ho} h + b_{ho}) \\
-        c' = f * c + i * g \\
-        h' = o \tanh(c') \\
-        \end{array}
-    where :math:`\sigma` is the sigmoid function.
+
     Note: Dropout not needed in this class. The reference paper doesn't 
     implement dropout within an individual cell, only on recurrent weights 
     and activations between cells.
@@ -179,6 +166,7 @@ class AWD_LSTM(nn.Module):
         # Weight tying
         # https://arxiv.org/abs/1608.05859
         # https://arxiv.org/abs/1611.01462
+        # this implementation does not work as expected
         #self.decoder.weight = self.embedding.weight
 
 
@@ -200,6 +188,7 @@ class AWD_LSTM(nn.Module):
     
     def embedding_dropout(self, embed, words, p=0.1):
         """
+        Taken from original authors code.
         TODO: re-write and add test
         """
         if not self.training:
@@ -286,6 +275,7 @@ class AWD_LSTM(nn.Module):
 
 
     def temporal_activation_reg(self, beta):
+
         # Not sure if this would be better returning average (as current) 
         # or max?
         ht = self.output_nodrop

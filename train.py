@@ -7,7 +7,7 @@ import torch as th
 import torch.nn as nn
 
 from model.data_loader import get_batches, get_batch
-from utils import batch_metrics2, plot_memory_usage
+from utils import batch_metrics, plot_memory_usage
 
 import sys
 import warnings
@@ -69,7 +69,7 @@ def train(model, data, criterion, optimizer, ntokens:int, batch_size:int,
         optimizer.step()
         
         del loss
-#         metrics = batch_metrics2(start_time, device)
+#         metrics = batch_metrics(start_time, device)
 #         results_df = results_df.append(metrics, ignore_index=True)
 #         results_df.to_csv('./results/batch_metrics.csv') 
         

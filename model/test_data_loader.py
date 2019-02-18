@@ -107,10 +107,6 @@ class Tests(unittest.TestCase):
         data = th.randn(5000, batch_size) # 5000 is arbitrary
 
         batches = dl.get_batches(data, base_seq_len, vary_seq_len=True)
-        #pprint(batches)
-        
-        # arbitrary tests assuming this random see
-        #print(*(b.size() for b in batches))
         
         # Assert that batches are ordered by decreasing sequence length
         for i in range(len(batches)-1):

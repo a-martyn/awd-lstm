@@ -131,6 +131,22 @@ def gen_sequence_lengths(data, base_seq_len):
 
 
 def get_batches(data, base_seq_len, vary_seq_len=False):
+    """
+    Subdivides the source data into chunks of length base_seq_len.
+    If data is equal to the example output of the batch function, with
+    a bptt-limit of 2, we'd get the following two Variables for i = 0:
+    ┌ a g m s ┐ ┌ b h n t ┐
+    └ b h n t ┘ └ c i o u ┘
+
+    If vary_seq_len is set True, then the sequence length is
+    varied between batches. The batches are returned sorted by
+    decreasing sequence length.
+
+    Packing and padding of sequences is not required because the model
+    is setup to handle variable lenght batches.
+
+    See test for details.
+    """
     # Get seq lens
     if vary_seq_len:
         seq_lens = gen_sequence_lengths(data, base_seq_len)

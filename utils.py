@@ -20,7 +20,7 @@ def epoch_metrics(epoch, start_time, train_loss, val_loss, device):
         'val_bpc'   : val_loss / math.log(2),
         'train_bpc' : train_loss / math.log(2)
     }
-    # Get cuda memor metrics if device is cuda
+    # Get cuda memory metrics if device is cuda
     if device == th.device('cuda:0'):
         metrics['memalloc_Gb'] = th.cuda.memory_allocated(device=device) / 1e+9
         metrics['memcache_Gb'] = th.cuda.memory_cached(device=device) / 1e+9
@@ -33,17 +33,7 @@ def stringify(dictionary:dict):
     return '| '.join(strings)   
 
 
-
-def batch_metrics(batch, data, timesteps, lr, elapsed, log_interval, cur_loss):
-    metrics = [f'| {batch}/{len(data) // timesteps} batches ',
-               f'| lr {lr:05.5f} ',
-               f'| ms/batch {elapsed * 1000 / log_interval:5.2f} ',
-               f'| loss {cur_loss:5.2f} ',
-               f'| ppl {np.exp(cur_loss):8.2f}',
-               f'| bpc {cur_loss / math.log(2):8.3f}']
-    return ''.join(metrics)
-
-def batch_metrics2(start_time, device):
+def batch_metrics(start_time, device):
     metrics = {'batch_time': time.time() - start_time}
     if device == th.device('cuda:0'):
         metrics['memalloc_Gb'] = th.cuda.memory_allocated(device=device) / 1e+9
@@ -51,6 +41,7 @@ def batch_metrics2(start_time, device):
         metrics['max_memalloc_Gb'] = th.cuda.max_memory_allocated(device=device) / 1e+9
         metrics['max_memcache_Gb'] = th.cuda.max_memory_cached(device=device) / 1e+9
     return metrics
+
 
 class NT_ASGD():
     """Non-monotonically triggered averaged stochastic gradient descent"""
