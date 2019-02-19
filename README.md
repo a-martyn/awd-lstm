@@ -2,11 +2,7 @@
 
 A PyTorch implementation of the paper ["Regularizing and Optimizing LSTM Language Models"](https://arxiv.org/abs/1708.02182). 
 
-Language modelling, at a word level, involves calculating the conditional probability of a word occuring given some other sequence of words. In this case we predict a word given the sequence of words that precede it. 
-
-```
-P(s_n|s_1, ..., s_n-1)
-```
+Language modelling, at a word level, involves calculating the conditional probability of a word occurring given some other sequence of words. In this case we predict a word given the sequence of words that precede it. 
 
 This paper achieved state-of-the-art word level perplexities on two data sets in 2017: 57.3 on Penn Treebank and 65.8 on WikiText-2. It was cited by subsequent papers that showed the potential for using language modelling as a means to pre-train models before applying them to other NLP tasks ([ULMFiT](https://arxiv.org/pdf/1801.06146.pdf), [ELMo](https://arxiv.org/pdf/1802.05365.pdf)). 
 
@@ -43,19 +39,19 @@ This implementation aims to be as readable and as simple as possible, to that en
 
 - **2. Weight-dropped LSTM** (`model.net.WeightDropout`): A wrapper around a vanilla LSTM network that applies dropout to hidden-to-hidden recurrent weights.
 
-- **3. Optimisation: Averaged Stochastic Gradient Descent (ASGD)** (`utils.NT_ASGD`): Starts averaging parameters from n previous times steps beyond some trigger point, in this case when the validation maetric fails to improve for multiple succesive optimisation steps.
+- **3. Optimisation: Averaged Stochastic Gradient Descent (ASGD)** (`utils.NT_ASGD`): Starts averaging parameters from n previous times steps beyond some trigger point, in this case when the validation metric fails to improve for multiple successive optimisation steps.
 
 - **4.1 Variable length backpropagation sequences** (`data_loader.get_batches`): Randomly select sequence length for each batch. For example in batch i, predict word given 20 preceding words. For batch i+1, predict word given 19 preceding words. 
 
-- **4.2 Variational Dropout** (`model.net.VariationalDropout`): An adaption of torch.nn.functional.dropout that applies the same dropout mask each time it is called. Samples a binary dropout mask only once upon instantiatin and then allows that same dropout mask to be used repeatedly. When minibatches are received as input, then a different mask is used for each minibatch. Note: The AWD-LSTM authors' implementation is not as described in paper. Their code appears to sample a new mask on each call. https://github.com/salesforce/awd-lstm-lm/blob/master/locked_dropout.py
+- **4.2 Variational Dropout** (`model.net.VariationalDropout`): An adaptation of torch.nn.functional.dropout that applies the same dropout mask each time it is called. Samples a binary dropout mask only once upon instantiation and then allows that same dropout mask to be used repeatedly. When minibatches are received as input, then a different mask is used for each minibatch. Note: The AWD-LSTM authors' implementation is not as described in paper. Their code appears to sample a new mask on each call. https://github.com/salesforce/awd-lstm-lm/blob/master/locked_dropout.py
 
-- **4.3 Embedding dropout** (`model.net.AWD_LSTM.embedding_dropout`): Word-level dropout on the embedding matrix. Means that if dropped then all occurences of a specific word dissappear for that forward/backward pass.
+- **4.3 Embedding dropout** (`model.net.AWD_LSTM.embedding_dropout`): Word-level dropout on the embedding matrix. Means that if dropped then all occurrences of a specific word disappear for that forward/backward pass.
 
-- **4.5 Independant embedding size and hidden-size**: In practice, just a configuration detail of the model.
+- **4.5 Independent embedding size and hidden-size**: In practice, just a configuration detail of the model.
 
-- **4.6 Activation Regularization (AR)** (`model.net.AWD_LSTM.activation_reg`: Calulates a regularisation factor that increases with magnitude of activations from the final recurrent layer.
+- **4.6 Activation Regularisation (AR)** (`model.net.AWD_LSTM.activation_reg`: Calculates a regularisation factor that increases with magnitude of activations from the final recurrent layer.
 
-- **4.6 Temporal Activation Regularization (TAR)** (`model.net.AWD_LSTM.temporal_activation_reg`) Calulates a regularisation factor that penalises the model for producing large changes in the LSTM cell's hidden state.
+- **4.6 Temporal Activation Regularisation (TAR)** (`model.net.AWD_LSTM.temporal_activation_reg`) Calculates a regularisation factor that penalises the model for producing large changes in the LSTM cell's hidden state.
 
 
 
@@ -85,7 +81,7 @@ This implementation achieves a validation of 91.0, worse than the reference pape
 
 ## Discussion
 
-What explains the discrepancy between this result and the authors'? There are a few known discrepencies worth noting:
+What explains the discrepancy between this result and the authors'? There are a few known discrepancies worth noting:
 
 #### Weight tying
 
@@ -111,7 +107,7 @@ ar = [th.sqrt(th.sum(a.pow(2), dim=1)).mean() for a in self.output]
 return alpha * (sum(ar)/len(ar)))
 ```
 
-Perhaps I made the wrong assumption to follow the paper here, and instead should have followed implementaiton in code.
+Perhaps I made the wrong assumption to follow the paper here, and instead should have followed implementation in code.
 
 
 
