@@ -57,7 +57,7 @@ This implementation aims to be as readable and as simple as possible, to that en
 
 ## What is not implemented?
 
-- **Weight tying**: I observed that implementation of this hampered speed of convergence during training, and after 100 epochs had not exceeded performance of model without wright tying. Maybe my implementation of this is naive (see commented line in `model.net.AWD_LSTM`) or perhaps the model with weight tying just learns slower but ultimately achieves better performance.
+- **Weight tying**: I observed that implementation of this hampered speed of convergence during training, and after 100 epochs had not exceeded performance of model without weight tying. Implementation is a one-liner `self.decoder.weight = self.embedding.weight`, so bug seems unlikely. Perhaps the model with weight tying just learns slower but ultimately achieves better performance.
 - **Split Cross Entropy Loss**: naively use `torch.nn.CrossEntropyLoss` criterion instead
 - **Fine tuning**: The authors first train the model for 500 epochs as implemented here, then run an additional 500 epochs of fine tuning with a modified training loop. This isn't implemented here.
 - **Pointer models**: After fine tuning the authors further improve the performance by pointer augmentation. This yields a drop in perplexity (improvement) of 6.1
