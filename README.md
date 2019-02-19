@@ -43,7 +43,7 @@ This implementation aims to be as readable and as simple as possible, to that en
 
 - **4.1 Variable length backpropagation sequences** (`data_loader.get_batches`): Randomly select sequence length for each batch. For example in batch i, predict word given 20 preceding words. For batch i+1, predict word given 19 preceding words. 
 
-- **4.2 Variational Dropout** (`model.net.VariationalDropout`): An adaptation of torch.nn.functional.dropout that applies the same dropout mask each time it is called. Samples a binary dropout mask only once upon instantiation and then allows that same dropout mask to be used repeatedly. When minibatches are received as input, then a different mask is used for each minibatch. Note: The AWD-LSTM authors' implementation is not as described in paper. Their code appears to sample a new mask on each call. https://github.com/salesforce/awd-lstm-lm/blob/master/locked_dropout.py
+- **4.2 Variational Dropout** (`model.net.VariationalDropout`): An adaptation of torch.nn.functional.dropout that applies the same dropout mask each time it is called. Samples a binary dropout mask only once upon instantiation and then allows that same dropout mask to be used repeatedly. When minibatches are received as input, then a different mask is used for each minibatch. Note: The AWD-LSTM authors' implementation is not as described in paper.
 
 - **4.3 Embedding dropout** (`model.net.AWD_LSTM.embedding_dropout`): Word-level dropout on the embedding matrix. Means that if dropped then all occurrences of a specific word disappear for that forward/backward pass.
 
