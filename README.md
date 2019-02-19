@@ -31,7 +31,7 @@ Notes: Nvidia GPUs supported. 500 epochs of training takes roughly 48 hours on a
 
 
 
-## What *is* implemented?
+## What's implemented?
 
 This implementation aims to be as readable and as simple as possible, to that end I've occasionally opted for verbosity over extensibility or training speed. For example, the LSTM is implemented 'from scratch' instead of using PyTorch's LSTM layer module. Also, in the forward pass of the model I chose to loop over timesteps rather than down through layers, only because I found this easier to reason about. The following features from the paper are implemented:
 
@@ -55,7 +55,7 @@ This implementation aims to be as readable and as simple as possible, to that en
 
 
 
-## What *is not* implemented?
+## What is not implemented?
 
 - **Weight tying**: I observed that implementation of this hampered speed of convergence during training, and after 100 epochs had not exceeded performance of model without wright tying. Maybe my implementation of this is naive (see commented line in `model.net.AWD_LSTM`) or perhaps the model with weight tying just learns slower but ultimately achieves better performance.
 - **Split Cross Entropy Loss**: naively use `torch.nn.CrossEntropyLoss` criterion instead
