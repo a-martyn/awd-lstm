@@ -49,7 +49,7 @@ This implementation aims to be as readable and as simple as possible, to that en
 
 - **4.5 Independent embedding size and hidden-size**: In practice, just a configuration detail of the model.
 
-- **4.6 Activation Regularisation (AR)** (`model.net.AWD_LSTM.activation_reg`: Calculates a regularisation factor that increases with magnitude of activations from the final recurrent layer.
+- **4.6 Activation Regularisation (AR)** (`model.net.AWD_LSTM.activation_reg`): Calculates a regularisation factor that increases with magnitude of activations from the final recurrent layer.
 
 - **4.6 Temporal Activation Regularisation (TAR)** (`model.net.AWD_LSTM.temporal_activation_reg`) Calculates a regularisation factor that penalises the model for producing large changes in the LSTM cell's hidden state.
 
@@ -81,7 +81,7 @@ This implementation achieves a validation of 91.0, worse than the reference pape
 
 ## Discussion
 
-What explains the discrepancy between this result and the authors'? There are a few known discrepancies worth noting:
+What explains the disparity between this result and the authors'? A few notable discrepancies worth noting:
 
 #### Weight tying
 
