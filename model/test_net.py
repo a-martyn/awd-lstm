@@ -10,25 +10,6 @@ import net
 class Tests(unittest.TestCase):
 
 
-    def test_weight_dropout(self):
-        # Instantiate an LSTM net with weight dropout on 
-        # hidden-to-hidden weights
-        model = net.AWD_LSTM(10, 20, 2)
-
-        # Apply drop connect with probabilit 1.0
-        model.weight_dropout(p=1.0) 
-        new_state = model.state_dict()
-        
-        # Test
-        # Because dropout probability is 1
-        # all hidden-to-hidden weights should be zero
-        # There are two such weight matrices because we
-        # configured a 2-layer lstm
-        self.assertTrue(new_state['layer0.h2h.weight'].sum() == 0)
-        self.assertTrue(new_state['layer1.h2h.weight'].sum() == 0)
-        # Here we test that input-to-hidden weights are unaffected
-        self.assertTrue(new_state['layer0.i2h.weight'].sum() != 0)
-        self.assertTrue(new_state['layer1.i2h.weight'].sum() != 0)
 
     def test_activation_reg(self):
         # make deterministe

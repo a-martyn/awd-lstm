@@ -19,25 +19,25 @@ class Tests(unittest.TestCase):
         # ASGD used in place of SGD optimizer when
         # loss increases for n succesive calls to get_optimizer 
         self.assertEqual(nt_asgd.asgd_triggered, False)
-        nt_asgd.get_optimizer(3, model.parameters())
+        nt_asgd.get_optimizer(3)
         self.assertEqual(nt_asgd.asgd_triggered, False)
-        nt_asgd.get_optimizer(2, model.parameters())
+        nt_asgd.get_optimizer(2)
         self.assertEqual(nt_asgd.asgd_triggered, False)
-        nt_asgd.get_optimizer(3, model.parameters())
+        nt_asgd.get_optimizer(3)
         self.assertEqual(nt_asgd.asgd_triggered, False)
-        nt_asgd.get_optimizer(3, model.parameters())
+        nt_asgd.get_optimizer(3)
         self.assertEqual(nt_asgd.asgd_triggered, False)
         # ASGD Triggered because loss was lowest n+1 epochs ago
-        nt_asgd.get_optimizer(4, model.parameters())
+        nt_asgd.get_optimizer(4)
         self.assertEqual(nt_asgd.asgd_triggered, True)
-        nt_asgd.get_optimizer(2, model.parameters())
+        nt_asgd.get_optimizer(2)
         self.assertEqual(nt_asgd.asgd_triggered, True)
-        nt_asgd.get_optimizer(3, model.parameters())
+        nt_asgd.get_optimizer(3)
         self.assertEqual(nt_asgd.asgd_triggered, True)
-        nt_asgd.get_optimizer(3, model.parameters())
+        nt_asgd.get_optimizer(3)
         self.assertEqual(nt_asgd.asgd_triggered, True) 
         # Doesn't un-trigger
-        nt_asgd.get_optimizer(4, model.parameters())
+        nt_asgd.get_optimizer(4)
         self.assertEqual(nt_asgd.asgd_triggered, True)  
         
 
