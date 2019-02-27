@@ -77,8 +77,6 @@ def train(model, data, criterion, optimizer, ntokens:int, batch_size:int,
     return
 
 
-
-
 def evaluate(model, data, criterion, ntokens, batch_size, timesteps, device):
     model.eval()
     total_loss = 0
@@ -87,8 +85,10 @@ def evaluate(model, data, criterion, ntokens, batch_size, timesteps, device):
         for i in range(0, data.size(0) - 1, timesteps):
             inputs, targets, _ = get_batch(data, i, timesteps)
             output, hiddens = model(inputs, hiddens)
-            total_loss += len(inputs) * criterion(output.view(-1, ntokens), targets.view(-1)).item()
+            total_loss += len(inputs) * criterion(model.decoder.weight, 
+                                                  model.decoder.bias, output, 
+                                                  targets).data
             hiddens = repackage_hidden(hiddens)
-    return total_loss / (len(data) - 1)
+    return total_loss.item() / len(data)
 
 
