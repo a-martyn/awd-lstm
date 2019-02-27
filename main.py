@@ -10,7 +10,6 @@ import model.net as net
 from model.data_loader import Dictionary, tokenise, batch
 from train import train, evaluate
 from utils import epoch_metrics, stringify, NT_ASGD, plot_memory_usage
-from loss import SplitCrossEntropyLoss
 
 from pprint import pprint
 
@@ -28,7 +27,7 @@ print(f'Running on: {device}')
 # --------------------------------------------------
 path = './data/penn/'
 MODEL_PATH = 'pretrained/scratch.pt'
-RESULTS_PATH = 'results/experiment_6.csv'
+RESULTS_PATH = 'results/scratch.csv'
 batch_size = 20
 
 
@@ -77,21 +76,7 @@ dropout_hid = 0.25
 model = net.AWD_LSTM(ntokens, emsize, nhid, device=device, dropout_wts=0.5, 
                      dropout_emb=0.1, dropout_inp=0.4, dropout_hid=0.25).to(device)
 # TODO: Check loss matches paper
-
-# LOSS FUNCTION
-# --------------------------------------------------
-
-#criterion = nn.CrossEntropyLoss()
-
-# Splits used for Penn Treebank dataset with vocabulary of ~50k
-# to produces fairly even matrix mults for the buckets:
-# 0: 11723136, 1: 10854630, 2: 11270961, 3: 11219422
-# note: these should be adjusted for different vocab sizes
-# see: https://github.com/salesforce/awd-lstm-lm/blob/master/main.py#L134
-splits = [4200, 35000, 180000]
-criterion = SplitCrossEntropyLoss(emsize, splits=splits, verbose=False)
-
-# OPTIMIZER
+criterion = nn.CrossEntropyLoss()
 nt_asgd = NT_ASGD(lr, weight_decay, non_monotone)
 
 # TRAIN MODEL
